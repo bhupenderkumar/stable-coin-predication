@@ -511,27 +511,47 @@ class TestAnalysisIntegration:
         """Test complete analysis pipeline."""
         analyzer = AIAnalyzer()
         
-        # Mock the LLM call to avoid actual API calls
-        with patch.object(analyzer, '_get_llm_response', new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = '''
+        # Convert sample_ohlcv_data to list of dicts
+        ohlcv_list = [
             {
-                "decision": "BUY",
-                "confidence": 72,
-                "reasoning": "Bullish momentum with increasing volume",
-                "risk_factors": ["meme coin volatility"]
+                'timestamp': c.timestamp,
+                'open': c.open,
+                'high': c.high,
+                'low': c.low,
+                'close': c.close,
+                'volume': c.volume
             }
-            '''
-            
-            result = await analyzer.analyze_token(
-                symbol="BONK",
-                token_data=sample_token_data,
-                ohlcv_data=sample_ohlcv_data
-            )
-            
-            assert result.symbol == "BONK"
-            assert result.decision.value in ['BUY', 'SELL', 'NO_BUY', 'HOLD']
-            assert 0 <= result.confidence <= 100
-            assert result.risk_level is not None
+            for c in sample_ohlcv_data
+        ]
+        
+        # Convert token_data to dict
+        token_dict = {
+            'price': sample_token_data.price,
+            'volume24h': sample_token_data.volume_24h or 0,
+            'liquidity': sample_token_data.liquidity or 0,
+            'marketCap': sample_token_data.market_cap or 0
+        }
+        
+        # Calculate indicators
+        closes = [c.close for c in sample_ohlcv_data]
+        indicators = {
+            'rsi': 55,
+            'volumeTrend': 'STABLE',
+            'volume_trend': 'STABLE'
+        }
+        
+        # Call analyze_token (will use mock analysis since no API key)
+        result = await analyzer.analyze_token(
+            symbol="BONK",
+            token_data=token_dict,
+            ohlcv=ohlcv_list,
+            indicators=indicators
+        )
+        
+        assert result['symbol'] == "BONK"
+        assert result['decision'] in ['BUY', 'SELL', 'NO_BUY', 'HOLD']
+        assert 0 <= result['confidence'] <= 100
+        assert result['riskLevel'] is not None
 
 
 if __name__ == "__main__":

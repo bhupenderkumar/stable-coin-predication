@@ -22,7 +22,7 @@ from app.utils.cache import cache
 from app.services.scheduler import scheduler_service, refresh_token_cache
 
 # Import routers
-from app.routers import tokens, analysis, trades, portfolio
+from app.routers import tokens, analysis, trades, portfolio, blockchain
 
 
 # Rate limiter setup
@@ -155,7 +155,8 @@ async def root():
             "tokens": "/api/tokens",
             "analysis": "/api/analysis",
             "trades": "/api/trades",
-            "portfolio": "/api/portfolio"
+            "portfolio": "/api/portfolio",
+            "blockchain": "/api/blockchain"
         }
     }
 
@@ -165,6 +166,7 @@ app.include_router(tokens.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
 app.include_router(trades.router, prefix="/api")
 app.include_router(portfolio.router, prefix="/api")
+app.include_router(blockchain.router, prefix="/api")
 
 
 # Development-only endpoints

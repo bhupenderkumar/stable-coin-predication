@@ -63,18 +63,19 @@ export const usePortfolioStore = create<PortfolioState>()(
                 return null as unknown as Holding; // Will be filtered out
               }
 
-              const newCostBasis =
+              const newAvgBuyPrice =
                 amount > 0
-                  ? (h.costBasis * h.amount + price * amount) / newAmount
-                  : h.costBasis;
+                  ? (h.avgBuyPrice * h.amount + price * amount) / newAmount
+                  : h.avgBuyPrice;
 
               return {
                 ...h,
                 amount: newAmount,
-                costBasis: newCostBasis,
+                avgBuyPrice: newAvgBuyPrice,
+                currentPrice: price,
                 value: newAmount * price,
-                pnl: (price - newCostBasis) * newAmount,
-                pnlPercentage: ((price - newCostBasis) / newCostBasis) * 100,
+                pnl: (price - newAvgBuyPrice) * newAmount,
+                pnlPercentage: ((price - newAvgBuyPrice) / newAvgBuyPrice) * 100,
               };
             }).filter(Boolean);
           } else if (amount > 0) {
@@ -82,31 +83,26 @@ export const usePortfolioStore = create<PortfolioState>()(
             const newHolding: Holding = {
               symbol,
               name: symbol, // Will be updated with actual name
+              mintAddress: '', // Will be updated with actual address
               amount,
-              costBasis: price,
+              avgBuyPrice: price,
               currentPrice: price,
               value: amount * price,
               pnl: 0,
               pnlPercentage: 0,
-              allocation: 0, // Will be recalculated
             };
             newHoldings = [...state.portfolio.holdings, newHolding];
           } else {
             newHoldings = state.portfolio.holdings;
           }
 
-          // Recalculate total value and allocations
+          // Recalculate total value
           const holdingsValue = newHoldings.reduce((sum, h) => sum + h.value, 0);
           const totalValue = state.portfolio.cashBalance + holdingsValue;
 
-          newHoldings = newHoldings.map((h) => ({
-            ...h,
-            allocation: (h.value / totalValue) * 100,
-          }));
-
           const totalPnl = newHoldings.reduce((sum, h) => sum + h.pnl, 0);
           const totalCost = newHoldings.reduce(
-            (sum, h) => sum + h.costBasis * h.amount,
+            (sum, h) => sum + h.avgBuyPrice * h.amount,
             0
           );
 

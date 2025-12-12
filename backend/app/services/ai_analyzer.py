@@ -14,6 +14,10 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from app.config import settings
+from app.services.prompts import PromptBuilder
+from app.services.confidence import ConfidenceScorer
+from app.services.risk import RiskAssessor
+from app.utils.indicators import calculate_rsi, calculate_macd, calculate_bollinger_bands
 
 
 class AIAnalyzer:
@@ -24,8 +28,13 @@ class AIAnalyzer:
     
     def __init__(self):
         self.api_key = settings.groq_api_key
-        self.model = "llama-3.1-70b-versatile"
+        self.model = "llama-3.3-70b-versatile"
         self._client = None
+        
+        # Initialize helper components
+        self.prompt_builder = PromptBuilder()
+        self.confidence_scorer = ConfidenceScorer()
+        self.risk_assessor = RiskAssessor()
     
     def _get_client(self):
         """Lazy initialization of Groq client."""
@@ -214,6 +223,188 @@ Provide your trading analysis and recommendation."""
             "stopLoss": None,
             "modelUsed": "mock-analyzer",
             "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    def _calculate_indicators(
+        self,
+        closes: List[float],
+        highs: List[float],
+        lows: List[float],
+        volumes: List[float]
+    ) -> Dict[str, Any]:
+        """
+        Calculate technical indicators from OHLCV data.
+        
+        Args:
+            closes: List of closing prices
+            highs: List of high prices
+            lows: List of low prices
+            volumes: List of volumes
+            
+        Returns:
+            Dictionary with calculated indicators
+        """
+        indicators = {}
+        
+        # Calculate RSI - returns list, get latest value
+        if len(closes) >= 14:
+            rsi_list = calculate_rsi(closes)
+            indicators['rsi'] = rsi_list[-1] if rsi_list else 50.0
+        else:
+            indicators['rsi'] = 50.0
+        
+        # Calculate MACD - returns dict of lists, get latest values
+        if len(closes) >= 26:
+            macd_data = calculate_macd(closes)
+            indicators['macd'] = {
+                'macd': macd_data['macd'][-1] if macd_data['macd'] else 0,
+                'signal': macd_data['signal'][-1] if macd_data['signal'] else 0,
+                'histogram': macd_data['histogram'][-1] if macd_data['histogram'] else 0
+            }
+        else:
+            indicators['macd'] = {'macd': 0, 'signal': 0, 'histogram': 0}
+        
+        # Calculate Bollinger Bands - returns dict of lists, get latest values
+        if len(closes) >= 20:
+            bb_data = calculate_bollinger_bands(closes)
+            indicators['bollinger'] = {
+                'upper': bb_data['upper'][-1] if bb_data['upper'] else 0,
+                'middle': bb_data['middle'][-1] if bb_data['middle'] else 0,
+                'lower': bb_data['lower'][-1] if bb_data['lower'] else 0
+            }
+        else:
+            indicators['bollinger'] = {'upper': 0, 'middle': 0, 'lower': 0}
+        
+        # Calculate volume trend
+        if len(volumes) >= 10:
+            recent_vol = sum(volumes[-5:]) / 5
+            older_vol = sum(volumes[-10:-5]) / 5
+            if recent_vol > older_vol * 1.1:
+                indicators['volume_trend'] = 'INCREASING'
+            elif recent_vol < older_vol * 0.9:
+                indicators['volume_trend'] = 'DECREASING'
+            else:
+                indicators['volume_trend'] = 'STABLE'
+        else:
+            indicators['volume_trend'] = 'STABLE'
+        
+        return indicators
+    
+    def _parse_llm_response(self, response: str) -> Dict[str, Any]:
+        """
+        Parse LLM response into structured format.
+        
+        Args:
+            response: Raw LLM response string
+            
+        Returns:
+            Parsed dictionary with decision, confidence, reasoning
+        """
+        try:
+            # Try to parse as JSON
+            parsed = json.loads(response.strip())
+            
+            # Ensure required fields exist
+            if 'decision' not in parsed:
+                parsed['decision'] = 'NO_BUY'
+            if 'confidence' not in parsed:
+                parsed['confidence'] = 50
+            if 'reasoning' not in parsed:
+                parsed['reasoning'] = 'Unable to parse reasoning'
+            
+            return parsed
+            
+        except json.JSONDecodeError:
+            # Try to extract JSON from the response
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+            
+            # Return default fallback response
+            return {
+                'decision': 'NO_BUY',
+                'confidence': 30,
+                'reasoning': 'Failed to parse LLM response',
+                'risk_factors': ['parsing_error']
+            }
+    
+    def _fallback_analysis(
+        self,
+        symbol: str,
+        token_data: Any,
+        indicators: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Fallback rule-based analysis when LLM is unavailable.
+        
+        Args:
+            symbol: Token symbol
+            token_data: Token data object
+            indicators: Technical indicators
+            
+        Returns:
+            Analysis result dictionary
+        """
+        rsi = indicators.get('rsi', 50)
+        volume_trend = indicators.get('volume_trend', 'STABLE')
+        macd = indicators.get('macd', {})
+        macd_histogram = macd.get('histogram', 0) if isinstance(macd, dict) else 0
+        
+        # Rule-based decision
+        decision = 'NO_BUY'
+        confidence = 50
+        reasoning = 'Neutral market conditions'
+        risk_factors = []
+        
+        # Oversold conditions with bullish momentum
+        if rsi < 30:
+            if volume_trend == 'INCREASING' or macd_histogram > 0:
+                decision = 'BUY'
+                confidence = 70 + (30 - rsi)
+                reasoning = f'Oversold RSI ({rsi:.1f}) with bullish signals. Good entry opportunity.'
+            else:
+                decision = 'NO_BUY'
+                confidence = 55
+                reasoning = f'Oversold RSI ({rsi:.1f}) but waiting for volume confirmation.'
+                risk_factors.append('weak_volume')
+        
+        # Overbought conditions
+        elif rsi > 70:
+            decision = 'SELL'
+            confidence = 65 + (rsi - 70)
+            reasoning = f'Overbought RSI ({rsi:.1f}). Consider taking profits.'
+            risk_factors.append('overbought')
+        
+        # MACD bullish crossover
+        elif macd_histogram > 0 and volume_trend == 'INCREASING':
+            decision = 'BUY'
+            confidence = 60
+            reasoning = 'Bullish MACD with increasing volume momentum.'
+        
+        # MACD bearish
+        elif macd_histogram < 0 and volume_trend == 'DECREASING':
+            decision = 'NO_BUY'
+            confidence = 55
+            reasoning = 'Bearish MACD with declining volume. Wait for reversal.'
+            risk_factors.append('bearish_momentum')
+        
+        # Cap confidence at 100
+        confidence = min(confidence, 100)
+        
+        return {
+            'analysisId': str(uuid.uuid4()),
+            'symbol': symbol,
+            'decision': decision,
+            'confidence': confidence,
+            'reasoning': reasoning,
+            'risk_factors': risk_factors,
+            'riskLevel': 'HIGH' if rsi > 70 or rsi < 30 else 'MEDIUM',
+            'indicators': indicators,
+            'timestamp': datetime.utcnow().isoformat()
         }
 
 

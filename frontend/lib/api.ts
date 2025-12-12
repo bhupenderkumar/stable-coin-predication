@@ -47,8 +47,8 @@ class APIClient {
       return mockTokens.map((token) => getRandomPriceUpdate(token));
     }
 
-    const response = await this.fetch<Token[]>('/api/tokens');
-    return response;
+    const response = await this.fetch<{ tokens: Token[]; total: number }>('/api/tokens');
+    return response.tokens;
   }
 
   async getToken(symbol: string): Promise<Token | null> {
@@ -58,8 +58,12 @@ class APIClient {
       return token ? getRandomPriceUpdate(token) : null;
     }
 
-    const response = await this.fetch<Token>(`/api/tokens/${symbol}`);
-    return response;
+    try {
+      const response = await this.fetch<Token>(`/api/tokens/${symbol}`);
+      return response;
+    } catch {
+      return null;
+    }
   }
 
   async getTokenOHLCV(
@@ -72,10 +76,10 @@ class APIClient {
       return mockOHLCV[symbol] || mockOHLCV['default'];
     }
 
-    const response = await this.fetch<OHLCV[]>(
+    const response = await this.fetch<{ symbol: string; interval: string; data: OHLCV[] }>(
       `/api/tokens/${symbol}/ohlcv?interval=${interval}&limit=${limit}`
     );
-    return response;
+    return response.data;
   }
 
   // ----------------------------------------
@@ -96,7 +100,7 @@ class APIClient {
       };
     }
 
-    const response = await this.fetch<AnalysisResponse>('/api/analyze', {
+    const response = await this.fetch<AnalysisResponse>('/api/analysis', {
       method: 'POST',
       body: JSON.stringify({ symbol }),
     });
@@ -113,7 +117,7 @@ class APIClient {
       return this.generateMockTrade(request);
     }
 
-    const response = await this.fetch<TradeResponse>('/api/trade', {
+    const response = await this.fetch<TradeResponse>('/api/trades', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -126,8 +130,8 @@ class APIClient {
       return mockTrades;
     }
 
-    const response = await this.fetch<Trade[]>('/api/trades');
-    return response;
+    const response = await this.fetch<{ trades: Trade[]; total: number }>('/api/trades/history');
+    return response.trades;
   }
 
   // ----------------------------------------
@@ -185,7 +189,7 @@ class APIClient {
     }
 
     try {
-      const response = await this.fetch<{ status: string }>('/api/health');
+      const response = await this.fetch<{ status: string }>('/health');
       return { ...response, mode: 'real' };
     } catch {
       return { status: 'error', mode: 'real' };
