@@ -1,0 +1,47 @@
+# docker-compose.dev.yml
+# Development overrides with hot reload
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: trading-bot-frontend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+      - NEXT_PUBLIC_USE_MOCK_API=true
+      - NEXT_PUBLIC_ENABLE_TRADING=true
+      - NEXT_PUBLIC_ENABLE_AI_ANALYSIS=true
+      - NEXT_PUBLIC_ENABLE_PORTFOLIO=true
+      - NEXT_PUBLIC_ENABLE_NOTIFICATIONS=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - trading-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - backend-data:/app/data
+    environment:
+      - DEBUG=true
+      - ENV=development
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  redis:
+    ports:
+      - "6379:6379"
+
+volumes:
+  backend-data:
