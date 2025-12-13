@@ -24,11 +24,11 @@ export interface FeatureFlags {
 }
 
 // ============================================
-// Default Configuration (Phase 1 - Mock Mode)
+// Default Configuration (Development - Real API)
 // ============================================
 
 export const defaultFlags: FeatureFlags = {
-  USE_REAL_API: false,
+  USE_REAL_API: true, // Changed to true - connect to real backend
   ENABLE_TRADING: true,
   ENABLE_AI_ANALYSIS: true,
   ENABLE_WEBSOCKET: false,
