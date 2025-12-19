@@ -23,6 +23,7 @@ from app.services.scheduler import scheduler_service, refresh_token_cache
 
 # Import routers
 from app.routers import tokens, analysis, trades, portfolio, blockchain
+from app.routers import websocket as ws_router
 
 
 # Rate limiter setup
@@ -167,6 +168,9 @@ app.include_router(analysis.router, prefix="/api")
 app.include_router(trades.router, prefix="/api")
 app.include_router(portfolio.router, prefix="/api")
 app.include_router(blockchain.router, prefix="/api")
+
+# WebSocket routes (no /api prefix)
+app.include_router(ws_router.router)
 
 
 # Development-only endpoints

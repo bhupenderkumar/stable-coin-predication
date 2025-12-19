@@ -9,22 +9,21 @@ import {
   History,
   Settings,
   Bot,
-  Moon,
-  Sun,
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { WalletButton } from '@/components/WalletButton';
 import { cn } from '@/lib/utils';
 import { getApiModeLabel, useFeatureFlags } from '@/lib/feature-flags';
 
 interface HeaderProps {
-  onToggleTheme?: () => void;
-  isDarkMode?: boolean;
+  className?: string;
 }
 
-export function Header({ onToggleTheme, isDarkMode = true }: HeaderProps) {
+export function Header({ className }: HeaderProps) {
   const pathname = usePathname();
   const flags = useFeatureFlags();
 
@@ -80,21 +79,11 @@ export function Header({ onToggleTheme, isDarkMode = true }: HeaderProps) {
             {getApiModeLabel()}
           </Badge>
 
+          {/* Wallet Connection */}
+          <WalletButton className="hidden sm:flex" />
+
           {/* Theme Toggle */}
-          {flags.ENABLE_DARK_MODE && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onToggleTheme}
-              className="h-9 w-9"
-            >
-              {isDarkMode ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </Button>
-          )}
+          <ThemeToggle className="h-9 w-9" />
 
           {/* Settings */}
           <Link href="/settings">
@@ -116,7 +105,7 @@ export function Footer() {
           Built for Solana Grant Application • AI-Powered Trading
         </p>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>Phase 1: Mock Data Mode</span>
+          <span>Paper Trading Mode (Real API)</span>
           <Separator orientation="vertical" className="h-4" />
           <a
             href="https://solana.com"

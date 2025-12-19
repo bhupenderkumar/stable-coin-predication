@@ -404,12 +404,20 @@ class TransactionService:
     async def get_slot(self) -> Optional[int]:
         """Get current slot."""
         result = await self._rpc_call("getSlot", [])
-        return result if result and "error" not in result else None
+        if result is None:
+            return None
+        if isinstance(result, dict) and "error" in result:
+            return None
+        return result if isinstance(result, int) else None
     
     async def get_block_height(self) -> Optional[int]:
         """Get current block height."""
         result = await self._rpc_call("getBlockHeight", [])
-        return result if result and "error" not in result else None
+        if result is None:
+            return None
+        if isinstance(result, dict) and "error" in result:
+            return None
+        return result if isinstance(result, int) else None
     
     async def get_health(self) -> Dict[str, Any]:
         """
@@ -437,6 +445,7 @@ class TransactionService:
                 "healthy": False,
                 "error": str(e),
                 "rpcUrl": self.rpc_url,
+                "network": "devnet" if "devnet" in self.rpc_url else "mainnet",
                 "timestamp": int(datetime.utcnow().timestamp() * 1000)
             }
 

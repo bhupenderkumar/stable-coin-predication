@@ -4,10 +4,16 @@ Loads environment variables and provides typed configuration.
 """
 
 import os
+from pathlib import Path
 from typing import Optional
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 from pydantic import Field
+
+# Get the backend directory for absolute paths
+BACKEND_DIR = Path(__file__).parent.parent
+DATA_DIR = BACKEND_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
 
 
 class Settings(BaseSettings):
@@ -44,7 +50,7 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = Field(
-        default="sqlite:///./data/trading.db",
+        default=f"sqlite:///{DATA_DIR}/trading.db",
         alias="DATABASE_URL"
     )
     

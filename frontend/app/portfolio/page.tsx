@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Wallet, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -11,7 +11,14 @@ import { usePortfolioStore } from '@/stores/portfolio-store';
 import { formatCurrency, formatPercentage, cn } from '@/lib/utils';
 
 export default function PortfolioPage() {
-  const { portfolio, trades } = usePortfolioStore();
+  const { portfolio, trades, isLoading, initialize, isInitialized } = usePortfolioStore();
+
+  // Initialize portfolio from API on mount
+  useEffect(() => {
+    if (!isInitialized) {
+      initialize();
+    }
+  }, [isInitialized, initialize]);
 
   // Fetch tokens for navigation
   const { data: tokens = [] } = useQuery({
@@ -106,10 +113,10 @@ export default function PortfolioPage() {
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Portfolio Summary */}
-        <PortfolioSummary portfolio={portfolio} />
+        <PortfolioSummary portfolio={portfolio} isLoading={isLoading} />
 
         {/* Trade History */}
-        <TradeHistory trades={trades} />
+        <TradeHistory trades={trades} isLoading={isLoading} />
       </div>
     </div>
   );

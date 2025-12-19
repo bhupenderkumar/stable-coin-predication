@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { History, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { usePortfolioStore } from '@/stores/portfolio-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatPrice, cn } from '@/lib/utils';
 
 export default function HistoryPage() {
-  const { trades } = usePortfolioStore();
+  const { trades, initialize, isInitialized } = usePortfolioStore();
+
+  // Initialize portfolio from API on mount
+  useEffect(() => {
+    if (!isInitialized) {
+      initialize();
+    }
+  }, [isInitialized, initialize]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

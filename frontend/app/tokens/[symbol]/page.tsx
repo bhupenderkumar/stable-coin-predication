@@ -16,7 +16,9 @@ import { TimeInterval, AnalysisResponse, TradeRequest, TradeResponse } from '@/t
 import { PriceChart } from '@/components/PriceChart';
 import { AIAnalysisCard } from '@/components/AIAnalysisCard';
 import { TradeForm } from '@/components/TradeForm';
+import { ConnectedTradeForm } from '@/components/ConnectedTradeForm';
 import { TradeHistory } from '@/components/TradeHistory';
+import { RiskMeter } from '@/components/RiskMeter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -282,7 +284,19 @@ export default function TokenDetailPage() {
 
         {/* Right Column - Trade & History */}
         <div className="space-y-6">
-          {/* Trade Form */}
+          {/* Connected Trade Form (Real Trading) */}
+          <ConnectedTradeForm token={token} />
+
+          {/* Risk Assessment */}
+          {analysis && (
+            <RiskMeter
+              level={analysis.riskLevel}
+              score={analysis.confidence}
+              showDetails={false}
+            />
+          )}
+
+          {/* Paper Trading Form (Simulation) */}
           <TradeForm
             token={token}
             cashBalance={portfolio?.cashBalance}

@@ -5,6 +5,7 @@ Provides API endpoints for:
 - Get portfolio summary
 - Get holdings
 - Update holdings
+- Execute trades with portfolio updates
 """
 
 from typing import Optional, List
@@ -12,6 +13,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services.data_fetcher import data_fetcher
+from app.services.trader import trader
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -21,6 +23,58 @@ _portfolio = {
     "cash": 10000.0,  # Starting with $10k paper money
     "holdings": {}
 }
+
+
+def get_portfolio_state():
+    """Get current portfolio state. Used by trades router."""
+    return _portfolio
+
+
+def update_portfolio_after_trade(trade_type: str, symbol: str, amount_in: float, amount_out: float, price: float):
+    """
+    Update portfolio after a trade is executed.
+    
+    Args:
+        trade_type: 'BUY' or 'SELL'
+        symbol: Token symbol
+        amount_in: Amount spent/sold
+        amount_out: Amount received
+        price: Execution price
+    """
+    global _portfolio
+    symbol = symbol.upper()
+    
+    if trade_type == "BUY":
+        # Deduct cash, add tokens
+        _portfolio["cash"] -= amount_in
+        
+        if symbol in _portfolio["holdings"]:
+            existing = _portfolio["holdings"][symbol]
+            total_amount = existing["amount"] + amount_out
+            total_cost = (existing["amount"] * existing["avgPrice"]) + (amount_out * price)
+            avg_price = total_cost / total_amount if total_amount > 0 else price
+            
+            _portfolio["holdings"][symbol] = {
+                "amount": total_amount,
+                "avgPrice": avg_price
+            }
+        else:
+            _portfolio["holdings"][symbol] = {
+                "amount": amount_out,
+                "avgPrice": price
+            }
+    else:
+        # SELL: Add cash, reduce/remove tokens
+        _portfolio["cash"] += amount_out
+        
+        if symbol in _portfolio["holdings"]:
+            existing = _portfolio["holdings"][symbol]
+            new_amount = existing["amount"] - amount_in
+            
+            if new_amount <= 0.0001:  # Effectively zero
+                del _portfolio["holdings"][symbol]
+            else:
+                _portfolio["holdings"][symbol]["amount"] = new_amount
 
 
 class PortfolioSummary(BaseModel):

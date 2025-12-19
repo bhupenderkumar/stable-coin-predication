@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const { portfolio, trades, executeTrade, refreshPortfolio } = usePortfolioStore();
+  const { portfolio, trades, isLoading, executeTrade, refreshPortfolio } = usePortfolioStore();
 
   // Fetch tokens
   const {
@@ -84,6 +84,17 @@ export default function DashboardPage() {
     const result = await executeTrade(request.symbol, request.type, request.amount, price);
     return result;
   };
+
+  // Initialize portfolio from API on mount
+  useEffect(() => {
+    const initializePortfolio = async () => {
+      const store = usePortfolioStore.getState();
+      if (!store.isInitialized) {
+        await store.initialize();
+      }
+    };
+    initializePortfolio();
+  }, []);
 
   // Select first token on load
   useEffect(() => {
@@ -167,6 +178,7 @@ export default function DashboardPage() {
           {/* Portfolio Summary */}
           <PortfolioSummary
             portfolio={portfolio}
+            isLoading={isLoading}
             onSelectHolding={(symbol) => {
               const token = tokens.find((t) => t.symbol === symbol);
               if (token) setSelectedToken(token);
@@ -185,7 +197,7 @@ export default function DashboardPage() {
           />
 
           {/* Recent Trades */}
-          <TradeHistory trades={trades} limit={5} />
+          <TradeHistory trades={trades} limit={5} isLoading={isLoading} />
         </div>
       </div>
     </div>

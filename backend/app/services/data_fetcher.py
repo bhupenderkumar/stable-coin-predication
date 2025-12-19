@@ -254,8 +254,7 @@ class DataFetcher:
         limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
-        Fetch Solana meme tokens with prices from Jupiter Price API.
-        This is a reliable replacement for Birdeye.
+        Fetch Solana meme tokens with prices from CoinGecko (FREE API).
         
         Args:
             sort_by: Sort field (volume, price, change)
@@ -271,64 +270,54 @@ class DataFetcher:
         if cached:
             return cached[offset:offset+limit]
         
-        await self.jupiter_limiter.acquire()
-        
         tokens = []
         
         try:
-            # Get all token addresses
-            addresses = [info["address"] for info in self.SOLANA_MEME_TOKENS.values()]
+            # Get market data from CoinGecko (FREE tier - no API key needed)
+            coingecko_ids = [info["coingecko_id"] for info in self.SOLANA_MEME_TOKENS.values()]
+            market_data = await self._get_coingecko_market_data(coingecko_ids)
             
-            # Fetch prices from Jupiter Price API (FREE, no key needed)
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(
-                    f"{self.jupiter_price_url}/price",
-                    params={"ids": ",".join(addresses)}
-                )
+            # Build token list using CoinGecko data
+            for symbol, info in self.SOLANA_MEME_TOKENS.items():
+                address = info["address"]
+                cg_data = market_data.get(info["coingecko_id"], {})
                 
-                if response.status_code == 200:
-                    price_data = response.json().get("data", {})
-                    
-                    # Now get additional data from CoinGecko for volume/market cap
-                    coingecko_ids = [info["coingecko_id"] for info in self.SOLANA_MEME_TOKENS.values()]
-                    market_data = await self._get_coingecko_market_data(coingecko_ids)
-                    
-                    # Build token list
-                    for symbol, info in self.SOLANA_MEME_TOKENS.items():
-                        address = info["address"]
-                        price_info = price_data.get(address, {})
-                        cg_data = market_data.get(info["coingecko_id"], {})
-                        
-                        price = float(price_info.get("price", 0) or 0)
-                        
-                        tokens.append({
-                            "symbol": symbol,
-                            "name": info["name"],
-                            "mintAddress": address,
-                            "price": price,
-                            "priceChange24h": float(cg_data.get("price_change_percentage_24h", 0) or 0),
-                            "priceChange7d": float(cg_data.get("price_change_percentage_7d", 0) or 0),
-                            "volume24h": float(cg_data.get("total_volume", 0) or 0),
-                            "liquidity": float(cg_data.get("total_volume", 0) or 0) * 0.1,  # Estimate
-                            "marketCap": float(cg_data.get("market_cap", 0) or 0),
-                            "holders": 0  # Not available from these APIs
-                        })
-                    
-                    # Sort tokens
-                    if sort_by == "volume":
-                        tokens.sort(key=lambda x: x["volume24h"], reverse=(sort_type == "desc"))
-                    elif sort_by == "price":
-                        tokens.sort(key=lambda x: x["price"], reverse=(sort_type == "desc"))
-                    elif sort_by == "change":
-                        tokens.sort(key=lambda x: x["priceChange24h"], reverse=(sort_type == "desc"))
-                    
-                    # Cache the result
-                    await cache.set_tokens(tokens)
-                    
-                    return tokens[offset:offset+limit]
-                else:
-                    print(f"Jupiter Price API error: {response.status_code}")
-                    return self._get_fallback_tokens()[offset:offset+limit]
+                # Use CoinGecko price as primary source
+                price = float(cg_data.get("price", 0) or 0)
+                
+                tokens.append({
+                    "symbol": symbol,
+                    "name": info["name"],
+                    "mintAddress": address,
+                    "price": price,
+                    "priceChange24h": float(cg_data.get("price_change_percentage_24h", 0) or 0),
+                    "priceChange7d": float(cg_data.get("price_change_percentage_7d", 0) or 0),
+                    "volume24h": float(cg_data.get("total_volume", 0) or 0),
+                    "liquidity": float(cg_data.get("total_volume", 0) or 0) * 0.1,  # Estimate
+                    "marketCap": float(cg_data.get("market_cap", 0) or 0),
+                    "holders": 0  # Not available from CoinGecko
+                })
+            
+            # Filter out tokens with no price data
+            tokens = [t for t in tokens if t["price"] > 0]
+            
+            # If no tokens have price, use fallback
+            if not tokens:
+                print("No CoinGecko price data available, using fallback")
+                return self._get_fallback_tokens()[offset:offset+limit]
+            
+            # Sort tokens
+            if sort_by == "volume":
+                tokens.sort(key=lambda x: x["volume24h"], reverse=(sort_type == "desc"))
+            elif sort_by == "price":
+                tokens.sort(key=lambda x: x["price"], reverse=(sort_type == "desc"))
+            elif sort_by == "change":
+                tokens.sort(key=lambda x: x["priceChange24h"], reverse=(sort_type == "desc"))
+            
+            # Cache the result
+            await cache.set_tokens(tokens)
+            
+            return tokens[offset:offset+limit]
                     
         except Exception as e:
             print(f"Token fetch error: {e}")

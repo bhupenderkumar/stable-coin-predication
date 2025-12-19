@@ -175,8 +175,47 @@ class APIClient {
       };
     }
 
-    const response = await this.fetch<Portfolio>('/api/portfolio');
-    return response;
+    // Fetch from real API and map to frontend Portfolio type
+    interface BackendPortfolio {
+      totalValue: number;
+      cash: number;
+      holdingsValue: number;
+      pnl: number;
+      pnlPercentage: number;
+      holdings: Array<{
+        symbol: string;
+        amount: number;
+        avgPrice: number;
+        currentPrice: number;
+        value: number;
+        pnl: number;
+        pnlPercentage: number;
+      }>;
+    }
+
+    const response = await this.fetch<BackendPortfolio>('/api/portfolio');
+    
+    // Map backend response to frontend Portfolio type
+    const portfolio: Portfolio = {
+      totalValue: response.totalValue,
+      cashBalance: response.cash,
+      pnl: response.pnl,
+      pnlPercentage: response.pnlPercentage,
+      holdings: response.holdings.map((h) => ({
+        symbol: h.symbol,
+        name: h.symbol, // Backend doesn't provide name, use symbol
+        mintAddress: '', // Backend doesn't provide mint address
+        amount: h.amount,
+        value: h.value,
+        avgBuyPrice: h.avgPrice,
+        currentPrice: h.currentPrice,
+        pnl: h.pnl,
+        pnlPercentage: h.pnlPercentage,
+      })),
+      lastUpdated: Date.now(),
+    };
+
+    return portfolio;
   }
 
   // ----------------------------------------

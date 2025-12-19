@@ -2,20 +2,22 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Portfolio, Trade, Holding } from '@/types';
-import { mockPortfolio, mockTrades } from '@/lib/mock-data';
+import type { Portfolio, Trade, Holding, TradeRequest } from '@/types';
+import { api } from '@/lib/api';
 
 interface PortfolioState {
   portfolio: Portfolio | null;
   trades: Trade[];
   isLoading: boolean;
   error: string | null;
+  isInitialized: boolean;
 
   // Actions
   setPortfolio: (portfolio: Portfolio) => void;
   addTrade: (trade: Trade) => void;
   updateHolding: (symbol: string, amount: number, price: number) => void;
   refreshPortfolio: () => Promise<void>;
+  fetchTrades: () => Promise<void>;
   executeTrade: (
     symbol: string,
     type: 'BUY' | 'SELL',
@@ -23,13 +25,15 @@ interface PortfolioState {
     price: number
   ) => Promise<Trade>;
   reset: () => void;
+  initialize: () => Promise<void>;
 }
 
 const initialState = {
-  portfolio: mockPortfolio,
-  trades: mockTrades,
+  portfolio: null as Portfolio | null,
+  trades: [] as Trade[],
   isLoading: false,
-  error: null,
+  error: null as string | null,
+  isInitialized: false,
 };
 
 export const usePortfolioStore = create<PortfolioState>()(
@@ -120,14 +124,43 @@ export const usePortfolioStore = create<PortfolioState>()(
       refreshPortfolio: async () => {
         set({ isLoading: true, error: null });
         try {
-          // In real implementation, this would fetch from API
-          // For now, we just simulate a delay
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          set({ isLoading: false });
+          const portfolio = await api.getPortfolio();
+          set({ portfolio, isLoading: false });
         } catch (error) {
+          console.error('Failed to refresh portfolio:', error);
           set({
             isLoading: false,
             error: error instanceof Error ? error.message : 'Failed to refresh portfolio',
+          });
+        }
+      },
+
+      fetchTrades: async () => {
+        try {
+          const trades = await api.getTrades();
+          set({ trades });
+        } catch (error) {
+          console.error('Failed to fetch trades:', error);
+        }
+      },
+
+      initialize: async () => {
+        const state = get();
+        if (state.isInitialized) return;
+        
+        set({ isLoading: true });
+        try {
+          const [portfolio, trades] = await Promise.all([
+            api.getPortfolio(),
+            api.getTrades(),
+          ]);
+          set({ portfolio, trades, isLoading: false, isInitialized: true });
+        } catch (error) {
+          console.error('Failed to initialize portfolio:', error);
+          set({
+            isLoading: false,
+            isInitialized: true,
+            error: error instanceof Error ? error.message : 'Failed to initialize',
           });
         }
       },
@@ -152,51 +185,48 @@ export const usePortfolioStore = create<PortfolioState>()(
           }
         }
 
-        // Create trade record
-        const trade: Trade = {
-          id: `trade_${Date.now()}`,
-          symbol,
-          type,
-          amountIn: type === 'BUY' ? totalCost : amount,
-          amountOut: type === 'BUY' ? amount : totalCost,
-          price,
-          fee: totalCost * 0.003, // 0.3% fee
-          timestamp: Date.now(),
-          status: 'EXECUTED',
-          txHash: `mock_tx_${Math.random().toString(36).substring(7)}`,
-        };
-
-        // Update portfolio
-        set((state) => {
-          if (!state.portfolio) return state;
-
-          const cashChange = type === 'BUY' ? -totalCost : totalCost;
-          const holdingChange = type === 'BUY' ? amount : -amount;
-
-          return {
-            trades: [trade, ...state.trades],
-            portfolio: {
-              ...state.portfolio,
-              cashBalance: state.portfolio.cashBalance + cashChange,
-            },
+        try {
+          // Execute trade via API
+          const tradeRequest: TradeRequest = {
+            symbol,
+            type,
+            amount: type === 'BUY' ? totalCost : amount,
+            slippageBps: 50,
           };
-        });
 
-        // Update holding
-        const holdingChange = type === 'BUY' ? amount : -amount;
-        get().updateHolding(symbol, holdingChange, price);
+          const result = await api.executeTrade(tradeRequest);
 
-        return trade;
+          if (result.status === 'FAILED') {
+            throw new Error(result.error || 'Trade failed');
+          }
+
+          const trade: Trade = {
+            ...result,
+            pnl: 0,
+            pnlPercentage: 0,
+          };
+
+          // Add trade to local state
+          set((state) => ({
+            trades: [trade, ...state.trades],
+          }));
+
+          // Refresh portfolio from API to get updated values
+          await get().refreshPortfolio();
+
+          return trade;
+        } catch (error) {
+          console.error('Trade execution failed:', error);
+          throw error;
+        }
       },
 
       reset: () => set(initialState),
     }),
     {
       name: 'portfolio-storage',
-      partialize: (state) => ({
-        portfolio: state.portfolio,
-        trades: state.trades,
-      }),
+      // Don't persist anything - always fetch fresh from API
+      partialize: () => ({}),
     }
   )
 );
