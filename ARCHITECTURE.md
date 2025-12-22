@@ -806,7 +806,7 @@ NEXT_PUBLIC_DEBUG=false
 ### Project Structure with Docker
 
 ```
-stable-coin-trading/
+solana-meme-trading/
 ├── docker-compose.yml           # Orchestration
 ├── docker-compose.dev.yml       # Development overrides
 ├── docker-compose.prod.yml      # Production overrides

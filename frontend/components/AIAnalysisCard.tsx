@@ -31,6 +31,7 @@ interface AIAnalysisCardProps {
   symbol: string;
   analysis: AnalysisResponse | null;
   isLoading?: boolean;
+  error?: string | null;
   onTrade?: (decision: Decision) => void;
 }
 
@@ -38,10 +39,26 @@ export function AIAnalysisCard({
   symbol,
   analysis,
   isLoading,
+  error,
   onTrade,
 }: AIAnalysisCardProps) {
   if (isLoading) {
     return <AnalysisSkeleton />;
+  }
+
+  // Show error state if analysis failed
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center text-destructive">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
+            <p className="font-medium">Analysis Failed</p>
+            <p className="text-sm text-muted-foreground mt-2">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!analysis) {
@@ -59,8 +76,23 @@ export function AIAnalysisCard({
 
   const { decision, confidence, reasoning, riskLevel, indicators } = analysis;
 
+  // Get card styling based on decision
+  const getDecisionStyle = () => {
+    switch (decision) {
+      case 'BUY':
+        return 'border-l-4 border-l-bullish bg-bullish/5';
+      case 'SELL':
+      case 'NO_BUY':
+        return 'border-l-4 border-l-bearish bg-bearish/5';
+      case 'HOLD':
+        return 'border-l-4 border-l-warning bg-warning/5';
+      default:
+        return '';
+    }
+  };
+
   return (
-    <Card className="overflow-hidden">
+    <Card className={cn('overflow-hidden', getDecisionStyle())}>
       {/* Header with Decision */}
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
@@ -241,37 +273,65 @@ export function AIAnalysisCard({
 
 // Decision Badge Component
 function DecisionBadge({ decision }: { decision: Decision }) {
-  const config: Record<Decision, { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' | 'secondary' }> = {
-    BUY: { icon: <TrendingUp className="h-3 w-3" />, variant: 'success' },
-    SELL: { icon: <TrendingDown className="h-3 w-3" />, variant: 'danger' },
-    NO_BUY: { icon: <XCircle className="h-3 w-3" />, variant: 'danger' },
-    HOLD: { icon: <Minus className="h-3 w-3" />, variant: 'warning' },
+  const config: Record<Decision, { icon: React.ReactNode; className: string; label: string }> = {
+    BUY: { 
+      icon: <TrendingUp className="h-4 w-4" />, 
+      className: 'bg-bullish text-white border-bullish shadow-lg shadow-bullish/30',
+      label: '🚀 BUY'
+    },
+    SELL: { 
+      icon: <TrendingDown className="h-4 w-4" />, 
+      className: 'bg-bearish text-white border-bearish shadow-lg shadow-bearish/30',
+      label: '📉 SELL'
+    },
+    NO_BUY: { 
+      icon: <XCircle className="h-4 w-4" />, 
+      className: 'bg-bearish text-white border-bearish shadow-lg shadow-bearish/30',
+      label: '⛔ NO BUY'
+    },
+    HOLD: { 
+      icon: <Minus className="h-4 w-4" />, 
+      className: 'bg-yellow-500 text-white border-yellow-500 shadow-lg shadow-yellow-500/30',
+      label: '⏸️ HOLD'
+    },
   };
 
-  const { icon, variant } = config[decision];
+  const { icon, className, label } = config[decision];
 
   return (
-    <Badge variant={variant} className="gap-1 px-3 py-1">
+    <Badge className={cn('gap-1.5 px-4 py-1.5 text-sm font-bold', className)}>
       {icon}
-      {decision}
+      {label}
     </Badge>
   );
 }
 
 // Risk Badge Component
 function RiskBadge({ risk }: { risk: RiskLevel }) {
-  const config: Record<RiskLevel, { icon: React.ReactNode; variant: 'success' | 'danger' | 'warning' }> = {
-    LOW: { icon: <CheckCircle className="h-3 w-3" />, variant: 'success' },
-    MEDIUM: { icon: <AlertTriangle className="h-3 w-3" />, variant: 'warning' },
-    HIGH: { icon: <AlertTriangle className="h-3 w-3" />, variant: 'danger' },
+  const config: Record<RiskLevel, { icon: React.ReactNode; className: string; label: string }> = {
+    LOW: { 
+      icon: <CheckCircle className="h-4 w-4" />, 
+      className: 'bg-bullish/20 text-bullish border-bullish/50',
+      label: '✅ LOW Risk'
+    },
+    MEDIUM: { 
+      icon: <AlertTriangle className="h-4 w-4" />, 
+      className: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/50',
+      label: '⚠️ MEDIUM Risk'
+    },
+    HIGH: { 
+      icon: <AlertTriangle className="h-4 w-4" />, 
+      className: 'bg-bearish/20 text-bearish border-bearish/50',
+      label: '🔴 HIGH Risk'
+    },
   };
 
-  const { icon, variant } = config[risk];
+  const { icon, className, label } = config[risk];
 
   return (
-    <Badge variant={variant} className="gap-1">
+    <Badge className={cn('gap-1.5 px-3 py-1 font-semibold border', className)}>
       {icon}
-      {risk} Risk
+      {label}
     </Badge>
   );
 }

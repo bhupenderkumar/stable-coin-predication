@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { WalletButton } from '@/components/WalletButton';
 import { cn } from '@/lib/utils';
-import { getApiModeLabel, useFeatureFlags } from '@/lib/feature-flags';
+import { getNetworkModeLabel, useFeatureFlags } from '@/lib/feature-flags';
 
 interface HeaderProps {
   className?: string;
@@ -70,13 +70,13 @@ export function Header({ className }: HeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center gap-2">
-          {/* API Mode Badge */}
+          {/* Network Badge */}
           <Badge
-            variant={flags.USE_REAL_API ? 'default' : 'secondary'}
-            className="gap-1 hidden sm:flex"
+            variant="default"
+            className="gap-1 hidden sm:flex bg-bullish/20 text-bullish border-bullish/30"
           >
             <Zap className="h-3 w-3" />
-            {getApiModeLabel()}
+            {getNetworkModeLabel()}
           </Badge>
 
           {/* Wallet Connection */}
@@ -105,7 +105,7 @@ export function Footer() {
           Built for Solana Grant Application • AI-Powered Trading
         </p>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>Paper Trading Mode (Real API)</span>
+          <span>Paper Trading Mode</span>
           <Separator orientation="vertical" className="h-4" />
           <a
             href="https://solana.com"

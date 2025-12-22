@@ -25,16 +25,33 @@ import {
 interface PortfolioSummaryProps {
   portfolio: Portfolio | null;
   isLoading?: boolean;
+  error?: string | null;
   onSelectHolding?: (symbol: string) => void;
 }
 
 export function PortfolioSummary({
   portfolio,
   isLoading,
+  error,
   onSelectHolding,
 }: PortfolioSummaryProps) {
   if (isLoading) {
     return <PortfolioSkeleton />;
+  }
+
+  // Show error state if portfolio failed to load
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center text-destructive">
+            <Wallet className="h-12 w-12 mx-auto mb-4" />
+            <p className="font-medium">Portfolio Unavailable</p>
+            <p className="text-sm text-muted-foreground mt-2">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!portfolio) {
@@ -44,6 +61,7 @@ export function PortfolioSummary({
           <div className="text-center text-muted-foreground">
             <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No portfolio data available</p>
+            <p className="text-sm mt-1">Connect your wallet to start trading</p>
           </div>
         </CardContent>
       </Card>
@@ -64,10 +82,13 @@ export function PortfolioSummary({
               <Wallet className="h-5 w-5" />
               Portfolio
             </CardTitle>
-            <Badge variant="outline" className="text-xs">
-              Paper Trading
+            <Badge className="text-xs bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
+              💰 Paper Trading
             </Badge>
           </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Practice with $10,000 virtual balance • Real market prices
+          </p>
         </CardHeader>
 
         <CardContent className="space-y-4">

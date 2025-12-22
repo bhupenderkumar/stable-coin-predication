@@ -14,10 +14,13 @@ export function cn(...inputs: ClassValue[]) {
 // ============================================
 
 export function formatCurrency(
-  value: number,
+  value: number | undefined | null,
   currency: string = 'USD',
   maximumFractionDigits: number = 2
 ): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    value = 0;
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -26,8 +29,8 @@ export function formatCurrency(
   }).format(value);
 }
 
-export function formatPrice(price: number): string {
-  if (price === 0) return '$0.00';
+export function formatPrice(price: number | undefined | null): string {
+  if (price === undefined || price === null || isNaN(price) || price === 0) return '$0.00';
   
   // For very small numbers (like meme coins)
   if (price < 0.0001) {
@@ -49,14 +52,20 @@ export function formatPrice(price: number): string {
   return formatCurrency(price);
 }
 
-export function formatNumber(value: number, decimals: number = 2): string {
+export function formatNumber(value: number | undefined | null, decimals: number = 2): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    value = 0;
+  }
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
   }).format(value);
 }
 
-export function formatCompactNumber(value: number): string {
+export function formatCompactNumber(value: number | undefined | null): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    return '0';
+  }
   if (value >= 1e9) {
     return `${(value / 1e9).toFixed(2)}B`;
   }
@@ -69,15 +78,18 @@ export function formatCompactNumber(value: number): string {
   return value.toFixed(2);
 }
 
-export function formatVolume(volume: number): string {
+export function formatVolume(volume: number | undefined | null): string {
   return `$${formatCompactNumber(volume)}`;
 }
 
-export function formatMarketCap(marketCap: number): string {
+export function formatMarketCap(marketCap: number | undefined | null): string {
   return `$${formatCompactNumber(marketCap)}`;
 }
 
-export function formatPercentage(value: number, decimals: number = 2): string {
+export function formatPercentage(value: number | undefined | null, decimals: number = 2): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    return '+0.00%';
+  }
   const formatted = Math.abs(value).toFixed(decimals);
   const sign = value >= 0 ? '+' : '-';
   return `${sign}${formatted}%`;

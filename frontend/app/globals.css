@@ -194,6 +194,45 @@
   @apply text-bearish;
 }
 
+/* Decision indicator styles */
+.decision-buy {
+  @apply bg-bullish/10 border-bullish text-bullish;
+}
+
+.decision-sell, .decision-no-buy {
+  @apply bg-bearish/10 border-bearish text-bearish;
+}
+
+.decision-hold {
+  @apply bg-yellow-500/10 border-yellow-500 text-yellow-600 dark:text-yellow-400;
+}
+
+/* Risk level indicators */
+.risk-low {
+  @apply bg-bullish/10 text-bullish border-bullish;
+}
+
+.risk-medium {
+  @apply bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500;
+}
+
+.risk-high {
+  @apply bg-bearish/10 text-bearish border-bearish;
+}
+
+/* Confidence meter colors */
+.confidence-high {
+  @apply text-bullish;
+}
+
+.confidence-medium {
+  @apply text-yellow-500;
+}
+
+.confidence-low {
+  @apply text-bearish;
+}
+
 /* Number font */
 .font-mono-numbers {
   font-variant-numeric: tabular-nums;

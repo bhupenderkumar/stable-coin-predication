@@ -3,9 +3,6 @@
 // ============================================
 
 export interface FeatureFlags {
-  // API Mode
-  USE_REAL_API: boolean; // false = mock, true = real backend
-
   // Feature Toggles
   ENABLE_TRADING: boolean; // Enable/disable trade execution
   ENABLE_AI_ANALYSIS: boolean; // Enable/disable AI features
@@ -24,11 +21,10 @@ export interface FeatureFlags {
 }
 
 // ============================================
-// Default Configuration (Development - Real API)
+// Default Configuration (Development)
 // ============================================
 
 export const defaultFlags: FeatureFlags = {
-  USE_REAL_API: true, // Changed to true - connect to real backend
   ENABLE_TRADING: true,
   ENABLE_AI_ANALYSIS: true,
   ENABLE_WEBSOCKET: false,
@@ -42,11 +38,10 @@ export const defaultFlags: FeatureFlags = {
 };
 
 // ============================================
-// Production Configuration (Phase 2 - Real API)
+// Production Configuration
 // ============================================
 
 export const productionFlags: FeatureFlags = {
-  USE_REAL_API: true,
   ENABLE_TRADING: true,
   ENABLE_AI_ANALYSIS: true,
   ENABLE_WEBSOCKET: true,
@@ -60,17 +55,16 @@ export const productionFlags: FeatureFlags = {
 };
 
 // ============================================
-// Staging Configuration (Testing Real API)
+// Staging Configuration
 // ============================================
 
 export const stagingFlags: FeatureFlags = {
-  USE_REAL_API: true,
-  ENABLE_TRADING: true, // Paper trading only
+  ENABLE_TRADING: true,
   ENABLE_AI_ANALYSIS: true,
   ENABLE_WEBSOCKET: true,
   ENABLE_PORTFOLIO: true,
   ENABLE_NOTIFICATIONS: true,
-  USE_DEVNET: true, // Still use devnet
+  USE_DEVNET: true,
   DEBUG_MODE: true,
   ENABLE_DARK_MODE: true,
   ENABLE_PRICE_ALERTS: false,
@@ -121,7 +115,6 @@ export function getFeatureFlags(): FeatureFlags {
   // Override from environment variables (allows runtime configuration)
   if (typeof window !== 'undefined' || typeof process !== 'undefined') {
     const envOverrides: Partial<FeatureFlags> = {
-      USE_REAL_API: parseBoolEnv('NEXT_PUBLIC_USE_REAL_API', flags.USE_REAL_API),
       ENABLE_TRADING: parseBoolEnv('NEXT_PUBLIC_ENABLE_TRADING', flags.ENABLE_TRADING),
       ENABLE_AI_ANALYSIS: parseBoolEnv('NEXT_PUBLIC_ENABLE_AI', flags.ENABLE_AI_ANALYSIS),
       ENABLE_WEBSOCKET: parseBoolEnv('NEXT_PUBLIC_ENABLE_WS', flags.ENABLE_WEBSOCKET),
@@ -163,12 +156,10 @@ export function isFeatureEnabled(feature: keyof FeatureFlags): boolean {
   return flags[feature] === true;
 }
 
-// Get API mode string for display
-export function getApiModeLabel(): string {
+// Get network mode string for display
+export function getNetworkModeLabel(): string {
   const flags = getFeatureFlags();
-  if (!flags.USE_REAL_API) return 'Mock Mode';
-  if (flags.USE_DEVNET) return 'Devnet';
-  return 'Mainnet';
+  return flags.USE_DEVNET ? 'Devnet' : 'Mainnet';
 }
 
 // Get network configuration

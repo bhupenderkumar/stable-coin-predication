@@ -1,4 +1,4 @@
-// File: /Users/bhupender.kumar/projects/stable-coin-trading/frontend/app/page.tsx
+// File: /Users/bhupender.kumar/projects/solana-meme-trading/frontend/app/page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

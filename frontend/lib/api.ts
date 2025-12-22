@@ -1,16 +1,7 @@
 // ============================================
-// API Client with Mock/Real Toggle
+// API Client
 // ============================================
 
-import { getFeatureFlags } from './feature-flags';
-import {
-  mockTokens,
-  mockAnalysis,
-  mockOHLCV,
-  mockPortfolio,
-  mockTrades,
-  getRandomPriceUpdate,
-} from './mock-data';
 import type {
   Token,
   AnalysisResponse,
@@ -27,42 +18,46 @@ import type {
 // ============================================
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_TIMEOUT = 10000; // 10 seconds
+const API_TIMEOUT = 15000; // 15 seconds
+
+// ============================================
+// Custom API Error Class
+// ============================================
+
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public statusCode?: number,
+    public endpoint?: string
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
 
 // ============================================
 // API Client Class
 // ============================================
 
 class APIClient {
-  private flags = getFeatureFlags();
-
   // ----------------------------------------
   // Token Endpoints
   // ----------------------------------------
 
   async getTokens(): Promise<Token[]> {
-    if (!this.flags.USE_REAL_API) {
-      await this.simulateDelay(300);
-      // Add some random price fluctuation for realism
-      return mockTokens.map((token) => getRandomPriceUpdate(token));
-    }
-
     const response = await this.fetch<{ tokens: Token[]; total: number }>('/api/tokens');
     return response.tokens;
   }
 
   async getToken(symbol: string): Promise<Token | null> {
-    if (!this.flags.USE_REAL_API) {
-      await this.simulateDelay(200);
-      const token = mockTokens.find((t) => t.symbol === symbol);
-      return token ? getRandomPriceUpdate(token) : null;
-    }
-
     try {
       const response = await this.fetch<Token>(`/api/tokens/${symbol}`);
       return response;
-    } catch {
-      return null;
+    } catch (error) {
+      if (error instanceof APIError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
     }
   }
 
@@ -71,11 +66,6 @@ class APIClient {
     interval: TimeInterval = '1h',
     limit: number = 168
   ): Promise<OHLCV[]> {
-    if (!this.flags.USE_REAL_API) {
-      await this.simulateDelay(400);
-      return mockOHLCV[symbol] || mockOHLCV['default'];
-    }
-
     const response = await this.fetch<{ symbol: string; interval: string; data: OHLCV[] }>(
       `/api/tokens/${symbol}/ohlcv?interval=${interval}&limit=${limit}`
     );
@@ -87,19 +77,6 @@ class APIClient {
   // ----------------------------------------
 
   async analyzeToken(symbol: string): Promise<AnalysisResponse> {
-    if (!this.flags.USE_REAL_API) {
-      // Simulate AI thinking time
-      await this.simulateDelay(1500 + Math.random() * 1000);
-      
-      const analysis = mockAnalysis[symbol] || mockAnalysis['default'];
-      return {
-        ...analysis,
-        timestamp: Date.now(),
-        // Add some randomness to confidence
-        confidence: Math.min(100, Math.max(0, analysis.confidence + (Math.random() - 0.5) * 10)),
-      };
-    }
-
     const response = await this.fetch<AnalysisResponse>('/api/analysis', {
       method: 'POST',
       body: JSON.stringify({ symbol }),
@@ -112,11 +89,6 @@ class APIClient {
   // ----------------------------------------
 
   async executeTrade(request: TradeRequest): Promise<TradeResponse> {
-    if (!this.flags.USE_REAL_API) {
-      await this.simulateDelay(800);
-      return this.generateMockTrade(request);
-    }
-
     const response = await this.fetch<TradeResponse>('/api/trades', {
       method: 'POST',
       body: JSON.stringify(request),
@@ -125,11 +97,6 @@ class APIClient {
   }
 
   async getTrades(): Promise<Trade[]> {
-    if (!this.flags.USE_REAL_API) {
-      await this.simulateDelay(300);
-      return mockTrades;
-    }
-
     const response = await this.fetch<{ trades: Trade[]; total: number }>('/api/trades/history');
     return response.trades;
   }
@@ -139,42 +106,6 @@ class APIClient {
   // ----------------------------------------
 
   async getPortfolio(): Promise<Portfolio> {
-    if (!this.flags.USE_REAL_API) {
-      await this.simulateDelay(300);
-      
-      // Update portfolio values based on current prices
-      const updatedHoldings = mockPortfolio.holdings.map((holding) => {
-        const token = mockTokens.find((t) => t.symbol === holding.symbol);
-        if (token) {
-          const currentPrice = token.price;
-          const value = holding.amount * currentPrice;
-          const pnl = (currentPrice - holding.avgBuyPrice) * holding.amount;
-          const pnlPercentage = ((currentPrice - holding.avgBuyPrice) / holding.avgBuyPrice) * 100;
-          
-          return {
-            ...holding,
-            currentPrice,
-            value,
-            pnl,
-            pnlPercentage,
-          };
-        }
-        return holding;
-      });
-
-      const holdingsValue = updatedHoldings.reduce((sum, h) => sum + h.value, 0);
-      const totalPnl = updatedHoldings.reduce((sum, h) => sum + h.pnl, 0);
-
-      return {
-        ...mockPortfolio,
-        holdings: updatedHoldings,
-        totalValue: mockPortfolio.cashBalance + holdingsValue,
-        pnl: totalPnl,
-        pnlPercentage: (totalPnl / (mockPortfolio.cashBalance + holdingsValue - totalPnl)) * 100,
-        lastUpdated: Date.now(),
-      };
-    }
-
     // Fetch from real API and map to frontend Portfolio type
     interface BackendPortfolio {
       totalValue: number;
@@ -222,16 +153,15 @@ class APIClient {
   // Health Check
   // ----------------------------------------
 
-  async healthCheck(): Promise<{ status: string; mode: string }> {
-    if (!this.flags.USE_REAL_API) {
-      return { status: 'ok', mode: 'mock' };
-    }
-
+  async healthCheck(): Promise<{ status: string; message?: string }> {
     try {
       const response = await this.fetch<{ status: string }>('/health');
-      return { ...response, mode: 'real' };
-    } catch {
-      return { status: 'error', mode: 'real' };
+      return { ...response };
+    } catch (error) {
+      return { 
+        status: 'error', 
+        message: error instanceof Error ? error.message : 'API unavailable'
+      };
     }
   }
 
@@ -256,65 +186,41 @@ class APIClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        throw new APIError(
+          `API Error: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ''}`,
+          response.status,
+          endpoint
+        );
       }
 
       return response.json();
     } catch (error) {
       clearTimeout(timeoutId);
       
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout');
+      if (error instanceof APIError) {
+        throw error;
       }
       
-      throw error;
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new APIError('Request timeout - server took too long to respond', undefined, endpoint);
+        }
+        
+        // Network errors
+        if (error.message.includes('fetch') || error.message.includes('network')) {
+          throw new APIError(
+            'Unable to connect to trading server. Please check your connection.',
+            undefined,
+            endpoint
+          );
+        }
+        
+        throw new APIError(error.message, undefined, endpoint);
+      }
+      
+      throw new APIError('An unexpected error occurred', undefined, endpoint);
     }
-  }
-
-  private async simulateDelay(ms: number = 500): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  private generateMockTrade(request: TradeRequest): TradeResponse {
-    const token = mockTokens.find((t) => t.symbol === request.symbol);
-    const price = token?.price || 1;
-    const slippageMultiplier = 1 + (request.slippageBps / 10000) * (Math.random() - 0.5);
-    const effectivePrice = price * slippageMultiplier;
-
-    const amountOut =
-      request.type === 'BUY'
-        ? request.amount / effectivePrice
-        : request.amount * effectivePrice;
-
-    const fee = request.amount * 0.003; // 0.3% fee
-
-    // Simulate occasional failures (5% chance)
-    if (Math.random() < 0.05) {
-      return {
-        id: `trade_${Date.now()}`,
-        status: 'FAILED',
-        symbol: request.symbol,
-        type: request.type,
-        amountIn: request.amount,
-        amountOut: 0,
-        price: effectivePrice,
-        fee: 0,
-        timestamp: Date.now(),
-        error: 'Transaction failed: Slippage tolerance exceeded',
-      };
-    }
-
-    return {
-      id: `trade_${Date.now()}`,
-      status: 'EXECUTED',
-      symbol: request.symbol,
-      type: request.type,
-      amountIn: request.amount,
-      amountOut,
-      price: effectivePrice,
-      fee,
-      timestamp: Date.now(),
-    };
   }
 }
 

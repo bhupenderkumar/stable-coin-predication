@@ -15,6 +15,7 @@ import {
   BarChart,
   ComposedChart,
 } from 'recharts';
+import { AlertTriangle } from 'lucide-react';
 import { OHLCV, TimeInterval } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +25,7 @@ interface PriceChartProps {
   symbol: string;
   data: OHLCV[];
   isLoading?: boolean;
+  error?: string;
   onIntervalChange?: (interval: TimeInterval) => void;
   currentInterval?: TimeInterval;
 }
@@ -39,10 +41,29 @@ export function PriceChart({
   symbol,
   data,
   isLoading,
+  error,
   onIntervalChange,
   currentInterval = '1h',
 }: PriceChartProps) {
   const [chartType, setChartType] = useState<'line' | 'candle' | 'area'>('area');
+
+  // Show error state if chart data failed to load
+  if (error) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">{symbol} Price Chart</CardTitle>
+        </CardHeader>
+        <CardContent className="py-12">
+          <div className="text-center text-destructive">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
+            <p className="font-medium">Unable to Load Chart Data</p>
+            <p className="text-sm text-muted-foreground mt-2">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Transform data for charts
   const chartData = data.map((candle) => ({

@@ -14,13 +14,19 @@ class TokenBase(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Single token response."""
+    """Single token response with full data."""
     symbol: str
+    name: Optional[str] = None
+    mintAddress: Optional[str] = None
     price: float
-    priceChange24h: Optional[float] = 0.0
-    volume24h: Optional[float] = 0.0
+    priceChange24h: float = 0.0
+    priceChange7d: float = 0.0
+    volume24h: float = 0.0
     high24h: Optional[float] = None
     low24h: Optional[float] = None
+    liquidity: float = 0.0
+    marketCap: float = 0.0
+    holders: int = 0
 
 
 class TokenListItem(BaseModel):
@@ -35,6 +41,7 @@ class TokenListItem(BaseModel):
     liquidity: float = 0.0
     marketCap: float = 0.0
     holders: int = 0
+    aiScore: Optional[float] = None  # AI profit potential score
 
 
 class TokenListResponse(BaseModel):

@@ -46,7 +46,7 @@ def calculate_sma(prices: List[float], period: int = 20) -> List[float]:
     """
     df = pd.DataFrame({'close': prices})
     sma = df['close'].rolling(window=period).mean()
-    return sma.fillna(method='bfill').tolist()
+    return sma.bfill().tolist()
 
 
 def calculate_ema(prices: List[float], period: int = 12) -> List[float]:
@@ -124,9 +124,9 @@ def calculate_bollinger_bands(
     lower = middle - (std * std_dev)
     
     return {
-        'upper': upper.fillna(method='bfill').tolist(),
-        'middle': middle.fillna(method='bfill').tolist(),
-        'lower': lower.fillna(method='bfill').tolist()
+        'upper': upper.bfill().tolist(),
+        'middle': middle.bfill().tolist(),
+        'lower': lower.bfill().tolist()
     }
 
 

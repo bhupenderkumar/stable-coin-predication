@@ -104,11 +104,16 @@ export function ConnectedTradeForm({ token, disabled = false }: ConnectedTradeFo
   const cashBalance = solBalance * price; // Approximate USDC value
   const maxAmount = tradeType === 'BUY' ? cashBalance : tokenBalance * price;
 
-  const isValidTrade =
+  // Validation for getting a quote - just needs valid amount and token
+  const canGetQuote = 
     isValidAmount(amount) &&
     amountNum > 0 &&
+    token !== null;
+
+  // Validation for executing a trade - needs wallet connected and sufficient balance
+  const isValidTrade =
+    canGetQuote &&
     amountNum <= maxAmount &&
-    token !== null &&
     isConnected;
 
   // Get swap quote from Jupiter
@@ -117,6 +122,7 @@ export function ConnectedTradeForm({ token, disabled = false }: ConnectedTradeFo
 
     setIsGettingQuote(true);
     setError(null);
+    setQuote(null); // Reset previous quote
 
     try {
       // Convert amount to lamports/smallest unit
@@ -380,7 +386,7 @@ export function ConnectedTradeForm({ token, disabled = false }: ConnectedTradeFo
             variant="outline"
             className="w-full"
             onClick={getQuote}
-            disabled={isGettingQuote || !isValidTrade}
+            disabled={isGettingQuote || !canGetQuote}
           >
             {isGettingQuote ? (
               <>

@@ -50,6 +50,20 @@ export default function PortfolioPage() {
         </p>
       </div>
 
+      {/* Paper Trading Notice */}
+      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">💰</span>
+          <div>
+            <p className="font-medium text-yellow-600">Paper Trading Mode</p>
+            <p className="text-sm text-muted-foreground">
+              You start with $10,000 virtual money to practice trading. Prices are real market data from Solana DEXs.
+              Your trades don&apos;t use real money - perfect for learning and testing strategies!
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Performance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>

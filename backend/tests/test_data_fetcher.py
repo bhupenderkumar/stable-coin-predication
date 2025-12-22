@@ -42,7 +42,7 @@ class TestDataFetcher:
         
         assert fetcher.binance_url is not None
         assert fetcher.jupiter_url is not None
-        assert fetcher.birdeye_url is not None
+        assert fetcher.coingecko_url is not None
     
     def test_parse_binance_ohlcv(self):
         """Test parsing Binance OHLCV response."""
@@ -73,30 +73,19 @@ class TestDataFetcher:
         assert result[0]["close"] == 36200.00
         assert result[0]["volume"] == 1000.50
     
-    def test_parse_birdeye_tokens(self):
-        """Test parsing Birdeye token response."""
+    def test_rate_limiters_initialized(self):
+        """Test that rate limiters are properly initialized."""
         fetcher = DataFetcher()
         
-        raw_tokens = [
-            {
-                "symbol": "BONK",
-                "name": "Bonk",
-                "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-                "price": 0.00002341,
-                "v24hChangePercent": 5.67,
-                "v24hUSD": 45000000,
-                "liquidity": 8500000,
-                "mc": 1450000000,
-                "holder": 567890
-            }
-        ]
+        # Check rate limiters exist
+        assert fetcher.binance_limiter is not None
+        assert fetcher.jupiter_limiter is not None
+        assert fetcher.coingecko_limiter is not None
         
-        result = fetcher._parse_birdeye_tokens(raw_tokens)
-        
-        assert len(result) == 1
-        assert result[0]["symbol"] == "BONK"
-        assert result[0]["price"] == 0.00002341
-        assert result[0]["volume24h"] == 45000000
+        # Check rate limiter settings
+        assert fetcher.binance_limiter.max_requests == 1200
+        assert fetcher.jupiter_limiter.max_requests == 600
+        assert fetcher.coingecko_limiter.max_requests == 30
     
     def test_parse_jupiter_quote(self):
         """Test parsing Jupiter quote response."""

@@ -33,7 +33,7 @@ interface TokenTableProps {
 export function TokenTable({ tokens, onAnalyze, isLoading }: TokenTableProps) {
   const router = useRouter();
   const [sortConfig, setSortConfig] = useState<TableSortConfig>({
-    key: 'volume24h',
+    key: 'priceChange24h',
     direction: 'desc',
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,6 +96,19 @@ export function TokenTable({ tokens, onAnalyze, isLoading }: TokenTableProps) {
 
   if (isLoading) {
     return <TokenTableSkeleton />;
+  }
+
+  // Show empty state when no tokens available (API returned empty or no data)
+  if (tokens.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+        <p className="text-muted-foreground font-medium">No Tokens Available</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          No trading data is currently available from the server
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -181,12 +194,19 @@ export function TokenTable({ tokens, onAnalyze, isLoading }: TokenTableProps) {
               </tr>
             </thead>
             <tbody>
-              {sortedTokens.map((token, index) => (
+              {sortedTokens.map((token, index) => {
+                // Highlight top gainers (first 3 with positive change)
+                const isTopGainer = token.priceChange24h > 5;
+                const isTopLoser = token.priceChange24h < -5;
+                
+                return (
                 <tr
                   key={token.symbol}
                   className={cn(
                     'border-t hover:bg-muted/30 cursor-pointer transition-colors',
-                    index % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                    index % 2 === 0 ? 'bg-background' : 'bg-muted/10',
+                    isTopGainer && 'bg-bullish/5 hover:bg-bullish/10 border-l-2 border-l-bullish',
+                    isTopLoser && 'bg-bearish/5 hover:bg-bearish/10 border-l-2 border-l-bearish'
                   )}
                   onClick={() => handleRowClick(token.symbol)}
                 >
@@ -251,7 +271,8 @@ export function TokenTable({ tokens, onAnalyze, isLoading }: TokenTableProps) {
                     </Button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -269,13 +290,16 @@ export function TokenTable({ tokens, onAnalyze, isLoading }: TokenTableProps) {
 // Price Change Badge Component
 function PriceChangeBadge({ value }: { value: number }) {
   const isPositive = value >= 0;
+  const isSignificant = Math.abs(value) > 5;
   const Icon = isPositive ? TrendingUp : TrendingDown;
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-sm font-medium',
-        isPositive ? 'text-bullish' : 'text-bearish'
+        'inline-flex items-center gap-1 text-sm font-medium px-2 py-0.5 rounded',
+        isPositive ? 'text-bullish' : 'text-bearish',
+        isSignificant && isPositive && 'bg-bullish/20 font-bold',
+        isSignificant && !isPositive && 'bg-bearish/20 font-bold'
       )}
     >
       <Icon className="h-3 w-3" />

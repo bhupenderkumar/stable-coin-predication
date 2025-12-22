@@ -55,20 +55,14 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>API Configuration</CardTitle>
           <CardDescription>
-            Current API mode and feature flags
+            Trading API status and network configuration
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm">API Mode</span>
-            <Badge
-              className={
-                !featureFlags.USE_REAL_API
-                  ? 'bg-yellow-500/20 text-yellow-500'
-                  : 'bg-bullish/20 text-bullish'
-              }
-            >
-              {!featureFlags.USE_REAL_API ? 'Mock Data' : 'Live API'}
+            <span className="text-sm">Network</span>
+            <Badge className="bg-bullish/20 text-bullish">
+              {featureFlags.USE_DEVNET ? 'Devnet' : 'Mainnet'}
             </Badge>
           </div>
 
@@ -106,7 +100,6 @@ export default function SettingsPage() {
 
           <div className="text-xs text-muted-foreground">
             Feature flags are controlled via environment variables.
-            Set <code className="bg-muted px-1 rounded">NEXT_PUBLIC_USE_REAL_API=true</code> to use live APIs.
           </div>
         </CardContent>
       </Card>

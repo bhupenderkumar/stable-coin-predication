@@ -10,6 +10,8 @@ import {
   Check,
   Sparkles,
   RefreshCw,
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react';
 import { api, analyzeToken } from '@/lib/api';
 import { TimeInterval, AnalysisResponse, TradeRequest, TradeResponse } from '@/types';
@@ -23,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePortfolioStore } from '@/stores/portfolio-store';
 import {
   formatPrice,
@@ -43,40 +46,47 @@ export default function TokenDetailPage() {
   const [interval, setInterval] = useState<TimeInterval>('1h');
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const { portfolio, trades, executeTrade } = usePortfolioStore();
 
-  // Fetch token details
+  // Fetch token details - no mock data fallback
   const {
     data: token,
     isLoading: tokenLoading,
+    error: tokenError,
     refetch: refetchToken,
   } = useQuery({
     queryKey: ['token', symbol],
     queryFn: () => api.getToken(symbol),
     enabled: !!symbol,
+    retry: 2,
   });
 
-  // Fetch OHLCV data
+  // Fetch OHLCV data - no mock data fallback
   const {
     data: ohlcv = [],
     isLoading: ohlcvLoading,
+    error: ohlcvError,
     refetch: refetchOhlcv,
   } = useQuery({
     queryKey: ['ohlcv', symbol, interval],
     queryFn: () => api.getTokenOHLCV(symbol, interval),
     enabled: !!symbol,
+    retry: 1,
   });
 
-  // Handle analyze
+  // Handle analyze with error handling
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
+    setAnalysisError(null);
     try {
       const result = await analyzeToken(symbol);
       setAnalysis(result);
     } catch (error) {
       console.error('Analysis failed:', error);
+      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -94,6 +104,9 @@ export default function TokenDetailPage() {
   // Handle trade
   const handleTrade = async (request: TradeRequest): Promise<TradeResponse> => {
     const price = token?.price || 0;
+    if (price === 0) {
+      throw new Error('Cannot trade: Unable to determine token price');
+    }
     const result = await executeTrade(request.symbol, request.type, request.amount, price);
     return result;
   };
@@ -108,9 +121,30 @@ export default function TokenDetailPage() {
     return <TokenDetailSkeleton />;
   }
 
+  // Show API error state
+  if (tokenError) {
+    return (
+      <div className="container py-12 text-center">
+        <WifiOff className="h-16 w-16 mx-auto mb-4 text-destructive" />
+        <h1 className="text-2xl font-bold mb-4">Unable to Load Token Data</h1>
+        <p className="text-muted-foreground mb-4">
+          {tokenError instanceof Error ? tokenError.message : 'Failed to connect to trading server'}
+        </p>
+        <div className="flex gap-4 justify-center">
+          <Button variant="outline" onClick={() => refetchToken()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+          <Button onClick={() => router.push('/')}>Back to Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!token) {
     return (
       <div className="container py-12 text-center">
+        <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
         <h1 className="text-2xl font-bold mb-4">Token Not Found</h1>
         <p className="text-muted-foreground mb-4">
           The token &quot;{symbol}&quot; could not be found.
@@ -245,6 +279,7 @@ export default function TokenDetailPage() {
             symbol={token.symbol}
             data={ohlcv}
             isLoading={ohlcvLoading}
+            error={ohlcvError instanceof Error ? ohlcvError.message : undefined}
             currentInterval={interval}
             onIntervalChange={setInterval}
           />
@@ -279,6 +314,7 @@ export default function TokenDetailPage() {
             symbol={token.symbol}
             analysis={analysis}
             isLoading={isAnalyzing}
+            error={analysisError}
           />
         </div>
 
