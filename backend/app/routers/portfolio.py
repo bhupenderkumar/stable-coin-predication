@@ -9,6 +9,9 @@ Provides API endpoints for:
 """
 
 from typing import Optional, List
+import json
+import os
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -17,12 +20,36 @@ from app.services.trader import trader
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
+DATA_DIR = "data"
+PORTFOLIO_FILE = os.path.join(DATA_DIR, "paper_portfolio.json")
 
-# In-memory portfolio storage for demo
-_portfolio = {
-    "cash": 10000.0,  # Starting with $10k paper money
-    "holdings": {}
-}
+# Ensure data directory exists
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def load_portfolio():
+    """Load portfolio from file or return default."""
+    if os.path.exists(PORTFOLIO_FILE):
+        try:
+            with open(PORTFOLIO_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading portfolio: {e}")
+    
+    return {
+        "cash": 10000.0,  # Starting with $10k paper money
+        "holdings": {}
+    }
+
+def save_portfolio():
+    """Save portfolio to file."""
+    try:
+        with open(PORTFOLIO_FILE, "w") as f:
+            json.dump(_portfolio, f, indent=2)
+    except Exception as e:
+        print(f"Error saving portfolio: {e}")
+
+# In-memory portfolio storage (initialized from file)
+_portfolio = load_portfolio()
 
 
 def get_portfolio_state():
@@ -75,6 +102,9 @@ def update_portfolio_after_trade(trade_type: str, symbol: str, amount_in: float,
                 del _portfolio["holdings"][symbol]
             else:
                 _portfolio["holdings"][symbol]["amount"] = new_amount
+    
+    # Save changes
+    save_portfolio()
 
 
 class PortfolioSummary(BaseModel):
@@ -105,10 +135,20 @@ async def get_portfolio():
     holdings_value = 0.0
     total_invested = 0.0
     
+    # Prepare tasks for parallel execution
+    symbols = list(_portfolio["holdings"].keys())
+    tasks = [trader._get_token_price(symbol) for symbol in symbols]
+    
+    # Execute all price checks in parallel
+    # This significantly reduces latency when holding multiple tokens
+    prices = await asyncio.gather(*tasks)
+    price_map = dict(zip(symbols, prices))
+    
     for symbol, holding in _portfolio["holdings"].items():
         # Get current price
-        ticker = await data_fetcher.get_binance_ticker(symbol)
-        current_price = ticker["price"] if ticker else holding["avgPrice"]
+        current_price = price_map.get(symbol)
+        if not current_price:
+            current_price = holding["avgPrice"]
         
         # Calculate values
         value = holding["amount"] * current_price
@@ -130,7 +170,7 @@ async def get_portfolio():
         })
     
     total_value = _portfolio["cash"] + holdings_value
-    total_pnl = holdings_value - total_invested
+    total_pnl = total_value - 10000.0  # Total PnL based on initial capital
     initial_value = 10000.0  # Starting capital
     pnl_pct = ((total_value - initial_value) / initial_value) * 100
     
@@ -152,6 +192,7 @@ async def reset_portfolio():
         "cash": 10000.0,
         "holdings": {}
     }
+    save_portfolio()
     return {"message": "Portfolio reset to $10,000 cash"}
 
 
@@ -182,6 +223,7 @@ async def add_holding(request: AddHoldingRequest):
             "avgPrice": request.avgPrice
         }
     
+    save_portfolio()
     return {
         "message": f"Added {request.amount} {symbol} at ${request.avgPrice}",
         "holding": _portfolio["holdings"][symbol]

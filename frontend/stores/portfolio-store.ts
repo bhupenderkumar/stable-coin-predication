@@ -24,6 +24,7 @@ interface PortfolioState {
     amount: number,
     price: number
   ) => Promise<Trade>;
+  executeTradeRequest: (request: TradeRequest) => Promise<Trade>;
   reset: () => void;
   initialize: () => Promise<void>;
 }
@@ -103,12 +104,12 @@ export const usePortfolioStore = create<PortfolioState>()(
           // Recalculate total value
           const holdingsValue = newHoldings.reduce((sum, h) => sum + h.value, 0);
           const totalValue = state.portfolio.cashBalance + holdingsValue;
-
-          const totalPnl = newHoldings.reduce((sum, h) => sum + h.pnl, 0);
-          const totalCost = newHoldings.reduce(
-            (sum, h) => sum + h.avgBuyPrice * h.amount,
-            0
-          );
+          
+          // Calculate total PnL based on initial capital ($10,000)
+          // This matches backend logic
+          const initialCapital = 10000;
+          const totalPnl = totalValue - initialCapital;
+          const pnlPercentage = ((totalValue - initialCapital) / initialCapital) * 100;
 
           return {
             portfolio: {
@@ -116,7 +117,7 @@ export const usePortfolioStore = create<PortfolioState>()(
               holdings: newHoldings,
               totalValue,
               pnl: totalPnl,
-              pnlPercentage: totalCost > 0 ? (totalPnl / totalCost) * 100 : 0,
+              pnlPercentage,
             },
           };
         }),
@@ -171,17 +172,38 @@ export const usePortfolioStore = create<PortfolioState>()(
           throw new Error('Portfolio not initialized');
         }
 
-        const totalCost = amount * price;
+        // Backend API expects:
+        // - BUY: amount in USD
+        // - SELL: amount in TOKENS
+        // This function receives amount parameter in USD for both BUY and SELL
+        // (from AI recommendations which use suggestedAmount in USD)
+        
+        let apiAmount: number;  // Amount to send to API
+        let costInUSD: number;  // Cost/value in USD for validation
+        
+        if (type === 'BUY') {
+          // For BUY: API expects USD, we have USD
+          apiAmount = amount;
+          costInUSD = amount;
+        } else {
+          // For SELL: API expects TOKENS, we have USD value
+          // Convert USD to tokens
+          if (price <= 0) {
+            throw new Error('Invalid price for sell calculation');
+          }
+          apiAmount = amount / price;  // Convert USD to tokens
+          costInUSD = amount;
+        }
 
         // Validate trade
-        if (type === 'BUY' && totalCost > state.portfolio.cashBalance) {
+        if (type === 'BUY' && costInUSD > state.portfolio.cashBalance) {
           throw new Error('Insufficient funds');
         }
 
         if (type === 'SELL') {
           const holding = state.portfolio.holdings.find((h) => h.symbol === symbol);
-          if (!holding || holding.amount < amount) {
-            throw new Error('Insufficient holdings');
+          if (!holding || holding.amount < apiAmount) {
+            throw new Error(`Insufficient holdings. Need ${apiAmount.toFixed(6)} ${symbol}, have ${holding?.amount.toFixed(6) || 0}`);
           }
         }
 
@@ -190,9 +212,19 @@ export const usePortfolioStore = create<PortfolioState>()(
           const tradeRequest: TradeRequest = {
             symbol,
             type,
-            amount: type === 'BUY' ? totalCost : amount,
+            amount: apiAmount,
             slippageBps: 50,
           };
+
+          console.log('[Portfolio Store] Executing trade:', {
+            symbol,
+            type,
+            originalAmount: amount,
+            price,
+            apiAmount,
+            costInUSD,
+            tradeRequest,
+          });
 
           const result = await api.executeTrade(tradeRequest);
 
@@ -217,6 +249,36 @@ export const usePortfolioStore = create<PortfolioState>()(
           return trade;
         } catch (error) {
           console.error('Trade execution failed:', error);
+          throw error;
+        }
+      },
+
+      executeTradeRequest: async (request: TradeRequest) => {
+        try {
+          console.log('[Portfolio Store] Executing trade request:', request);
+          const result = await api.executeTrade(request);
+
+          if (result.status === 'FAILED') {
+            throw new Error(result.error || 'Trade failed');
+          }
+
+          const trade: Trade = {
+            ...result,
+            pnl: 0,
+            pnlPercentage: 0,
+          };
+
+          // Add trade to local state
+          set((state) => ({
+            trades: [trade, ...state.trades],
+          }));
+
+          // Refresh portfolio from API to get updated values
+          await get().refreshPortfolio();
+
+          return trade;
+        } catch (error) {
+          console.error('Trade request execution failed:', error);
           throw error;
         }
       },

@@ -24,6 +24,7 @@ from app.services.scheduler import scheduler_service, refresh_token_cache
 # Import routers
 from app.routers import tokens, analysis, trades, portfolio, blockchain
 from app.routers import websocket as ws_router
+from app.services.alerts import alert_service
 
 
 # Rate limiter setup
@@ -97,6 +98,27 @@ app = FastAPI(
 # Add rate limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler to catch unhandled errors and send alerts.
+    """
+    error_msg = str(exc)
+    print(f"🔥 Unhandled exception: {error_msg}")
+    
+    # Send alert
+    await alert_service.notify_system_error(
+        component="API",
+        error=error_msg,
+        details=f"Path: {request.url.path}\nMethod: {request.method}"
+    )
+    
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error. Admin has been notified."}
+    )
 
 # CORS middleware
 app.add_middleware(

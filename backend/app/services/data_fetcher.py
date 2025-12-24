@@ -445,6 +445,66 @@ class DataFetcher:
                 "liquidity": 3200000,
                 "marketCap": 35000000,
                 "holders": 78901
+            },
+            {
+                "symbol": "MEW",
+                "name": "cat in a dogs world",
+                "mintAddress": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
+                "price": 0.0045,
+                "priceChange24h": 12.34,
+                "priceChange7d": 45.67,
+                "volume24h": 89000000,
+                "liquidity": 15000000,
+                "marketCap": 450000000,
+                "holders": 156789
+            },
+            {
+                "symbol": "BOME",
+                "name": "BOOK OF MEME",
+                "mintAddress": "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
+                "price": 0.0123,
+                "priceChange24h": -5.67,
+                "priceChange7d": 12.34,
+                "volume24h": 234000000,
+                "liquidity": 45000000,
+                "marketCap": 678000000,
+                "holders": 234567
+            },
+            {
+                "symbol": "SLERF",
+                "name": "Slerf",
+                "mintAddress": "7BgBvyjrZX1YKz4oh9mjb8ZScatkkwb8DzFx7LoiVkM3",
+                "price": 0.34,
+                "priceChange24h": 8.90,
+                "priceChange7d": -12.34,
+                "volume24h": 56000000,
+                "liquidity": 12000000,
+                "marketCap": 170000000,
+                "holders": 89012
+            },
+            {
+                "symbol": "PONKE",
+                "name": "Ponke",
+                "mintAddress": "5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC",
+                "price": 0.15,
+                "priceChange24h": 23.45,
+                "priceChange7d": 67.89,
+                "volume24h": 34000000,
+                "liquidity": 8900000,
+                "marketCap": 150000000,
+                "holders": 45678
+            },
+            {
+                "symbol": "WEN",
+                "name": "Wen",
+                "mintAddress": "WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk",
+                "price": 0.00023,
+                "priceChange24h": -4.56,
+                "priceChange7d": 12.34,
+                "volume24h": 12000000,
+                "liquidity": 4500000,
+                "marketCap": 230000000,
+                "holders": 345678
             }
         ]
     

@@ -104,6 +104,11 @@ function TradeRow({ trade }: TradeRowProps) {
             >
               {trade.type}
             </Badge>
+            {trade.isPaperTrade && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                PAPER
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
             {timeAgo(trade.timestamp)}

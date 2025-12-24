@@ -296,6 +296,7 @@ interface UsePhantomWalletReturn extends PhantomWalletState {
   disconnect: () => Promise<void>;
   signAndSendTransaction: (serializedTransaction: string) => Promise<string>;
   refreshBalance: () => Promise<void>;
+  requestAirdrop: (amount?: number) => Promise<string>;
 }
 
 /**
@@ -313,6 +314,36 @@ export function usePhantomWallet(): UsePhantomWalletReturn {
       setIsAvailable(!!phantom?.isPhantom);
     }
   }, []);
+
+  const requestAirdrop = useCallback(
+    async (amount: number = 1.0): Promise<string> => {
+      if (!wallet.publicKey) {
+        throw new Error('Wallet not connected');
+      }
+
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_BASE}/api/blockchain/wallet/airdrop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: wallet.publicKey,
+          amount: amount
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Airdrop failed');
+      }
+
+      const result = await response.json();
+      // Wait a bit for the transaction to be confirmed before refreshing
+      setTimeout(() => balances.refetch(), 2000);
+      return result.signature;
+    },
+    [wallet.publicKey, balances.refetch]
+  );
 
   const signAndSendTransaction = useCallback(
     async (serializedTransaction: string): Promise<string> => {
@@ -362,6 +393,7 @@ export function usePhantomWallet(): UsePhantomWalletReturn {
     disconnect: wallet.disconnect,
     signAndSendTransaction,
     refreshBalance: balances.refetch,
+    requestAirdrop,
   };
 }
 

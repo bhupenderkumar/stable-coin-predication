@@ -8,6 +8,8 @@ Provides API endpoints for:
 """
 
 from typing import Optional, List
+import json
+import os
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -18,9 +20,33 @@ from app.schemas.trade import TradeRequest, TradeResponse, QuoteResponse
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 
+DATA_DIR = "data"
+TRADES_FILE = os.path.join(DATA_DIR, "paper_trades.json")
 
-# In-memory trade storage
-_trade_history: List[dict] = []
+# Ensure data directory exists
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def load_trades():
+    """Load trades from file or return default."""
+    if os.path.exists(TRADES_FILE):
+        try:
+            with open(TRADES_FILE, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading trades: {e}")
+    
+    return []
+
+def save_trades():
+    """Save trades to file."""
+    try:
+        with open(TRADES_FILE, "w") as f:
+            json.dump(_trade_history, f, indent=2)
+    except Exception as e:
+        print(f"Error saving trades: {e}")
+
+# In-memory trade storage (initialized from file)
+_trade_history: List[dict] = load_trades()
 
 
 def add_trade(trade: dict):
@@ -29,6 +55,9 @@ def add_trade(trade: dict):
     # Keep only last 200 trades
     if len(_trade_history) > 200:
         _trade_history.pop()
+    
+    # Save changes
+    save_trades()
 
 
 def get_all_trades() -> List[dict]:
@@ -82,9 +111,10 @@ async def execute_trade(request: ExecuteTradeRequest):
             )
         holding = portfolio["holdings"][symbol]
         # Get current price to check if we have enough tokens
-        ticker = await data_fetcher.get_binance_ticker(symbol)
-        if ticker:
-            token_value = holding["amount"] * ticker["price"]
+        # Use trader's price method which tries multiple sources
+        price = await trader._get_token_price(symbol)
+        if price:
+            token_value = holding["amount"] * price
             if request.amount > token_value:
                 raise HTTPException(
                     status_code=400,
@@ -173,4 +203,5 @@ async def reset_trade_history():
     """Reset trade history."""
     global _trade_history
     _trade_history = []
+    save_trades()
     return {"message": "Trade history cleared"}

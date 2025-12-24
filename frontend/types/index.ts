@@ -82,7 +82,7 @@ export type TradeStatus = 'PENDING' | 'EXECUTED' | 'FAILED' | 'CANCELLED';
 export interface TradeRequest {
   symbol: string;
   type: TradeType;
-  amount: number; // USD value
+  amount: number; // For BUY: USD value, For SELL: Token amount
   slippageBps: number; // Basis points (50 = 0.5%)
 }
 
@@ -96,6 +96,7 @@ export interface TradeResponse {
   price: number;
   fee: number;
   txHash?: string; // Only for real trades
+  isPaperTrade?: boolean;
   timestamp: number;
   error?: string;
 }
@@ -189,4 +190,43 @@ export interface PriceUpdate {
   price: number;
   change24h: number;
   volume24h: number;
+}
+
+// ============================================
+// AI Decision Queue Types
+// ============================================
+
+export type AIRecommendationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'EXECUTED';
+
+export interface AIRecommendation {
+  id: string;
+  symbol: string;
+  tokenName: string;
+  logoUrl?: string;
+  decision: Decision;
+  confidence: number;
+  reasoning: string;
+  riskLevel: RiskLevel;
+  indicators: AnalysisIndicators;
+  suggestedAmount: number; // USD value
+  suggestedSlippage: number; // bps
+  currentPrice: number;
+  targetPrice?: number;
+  stopLoss?: number;
+  potentialProfit?: number; // percentage
+  potentialLoss?: number; // percentage
+  status: AIRecommendationStatus;
+  createdAt: number;
+  expiresAt: number;
+  executedAt?: number;
+  tradeId?: string;
+}
+
+export interface AISettings {
+  autoScan: boolean;
+  scanInterval: number; // seconds
+  minConfidence: number; // 0-100
+  maxRiskLevel: RiskLevel;
+  defaultTradeAmount: number; // USD
+  autoApproveThreshold?: number; // confidence level to auto-approve (optional)
 }

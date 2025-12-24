@@ -30,6 +30,41 @@ class Trader:
         self.paper_mode = True  # Always start in paper mode
         self.slippage_bps = 50  # Default 0.5% slippage
     
+    async def _get_token_price(self, symbol: str) -> Optional[float]:
+        """
+        Get token price from multiple sources.
+        Tries: 1) Our cached token data, 2) Binance, 3) Jupiter
+        """
+        symbol_upper = symbol.upper()
+        
+        # First try to get from our meme token data (Jupiter + CoinGecko)
+        try:
+            tokens = await data_fetcher.get_solana_tokens()
+            for token in tokens:
+                if token.get("symbol", "").upper() == symbol_upper:
+                    return token.get("price")
+        except Exception as e:
+            print(f"Error getting token from trending: {e}")
+        
+        # Try Binance ticker (works for major coins like SOL, BTC, ETH)
+        ticker = await data_fetcher.get_binance_ticker(symbol)
+        if ticker and ticker.get("price"):
+            return ticker["price"]
+        
+        # Try Jupiter price API directly
+        try:
+            # Check if it's one of our known meme tokens
+            if symbol_upper in data_fetcher.SOLANA_MEME_TOKENS:
+                token_info = data_fetcher.SOLANA_MEME_TOKENS[symbol_upper]
+                mint_address = token_info["address"]
+                prices = await data_fetcher.get_jupiter_price([mint_address])
+                if prices and mint_address in prices:
+                    return prices[mint_address]
+        except Exception as e:
+            print(f"Error getting Jupiter price: {e}")
+        
+        return None
+    
     async def execute_trade(
         self,
         symbol: str,
@@ -76,10 +111,10 @@ class Trader:
         amount: float
     ) -> Dict[str, Any]:
         """Execute a paper (simulated) trade."""
-        # Get current price from Binance
-        ticker = await data_fetcher.get_binance_ticker(symbol)
+        # Try to get price - first from our token data, then Binance, then Jupiter
+        price = await self._get_token_price(symbol)
         
-        if not ticker:
+        if not price:
             return {
                 "id": trade_id,
                 "status": "FAILED",
@@ -88,7 +123,6 @@ class Trader:
                 "error": f"Could not fetch price for {symbol}"
             }
         
-        price = ticker["price"]
         fee_rate = 0.003  # Simulate 0.3% fee
         
         if trade_type == "BUY":

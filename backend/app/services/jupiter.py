@@ -25,6 +25,7 @@ class JupiterService:
     Jupiter DEX Aggregator integration for Solana swaps.
     
     Jupiter provides the best swap routes across all Solana DEXs.
+    Note: Jupiter API now requires an API key (free tier available at portal.jup.ag)
     """
     
     # Well-known Solana token addresses
@@ -32,17 +33,26 @@ class JupiterService:
     USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
     USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
     
-    # Common meme coin addresses on Solana
+    # Common meme coin addresses on Solana with their decimals and approximate prices
     MEME_TOKENS = {
-        "BONK": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-        "WIF": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
-        "POPCAT": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
-        "MYRO": "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4",
-        "SAMO": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+        "BONK": {"mint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "decimals": 5, "price_usd": 0.00003},
+        "WIF": {"mint": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", "decimals": 6, "price_usd": 2.50},
+        "POPCAT": {"mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "decimals": 9, "price_usd": 0.80},
+        "MYRO": {"mint": "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4", "decimals": 9, "price_usd": 0.15},
+        "SAMO": {"mint": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", "decimals": 9, "price_usd": 0.02},
+        "MEW": {"mint": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5", "decimals": 5, "price_usd": 0.005},
+        "BOME": {"mint": "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82", "decimals": 6, "price_usd": 0.008},
+        "SLERF": {"mint": "7BgBvyjrZX1YKz4oh9mjb8ZScatkkwb8DzFx7LoiVkM3", "decimals": 9, "price_usd": 0.35},
+        "PONKE": {"mint": "5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC", "decimals": 9, "price_usd": 0.40},
+        "WEN": {"mint": "WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk", "decimals": 5, "price_usd": 0.00008},
     }
+    
+    # Mint address to token info lookup
+    MINT_TO_TOKEN = {info["mint"]: {"symbol": symbol, **info} for symbol, info in MEME_TOKENS.items()}
     
     def __init__(self):
         self.base_url = settings.jupiter_api_url
+        self.api_key = getattr(settings, 'jupiter_api_key', None)
         self.timeout = 30.0
     
     async def _api_call(
@@ -55,12 +65,23 @@ class JupiterService:
         """Make API call to Jupiter."""
         try:
             url = f"{self.base_url}{endpoint}"
+            headers = {"Accept": "application/json"}
+            
+            # Add API key if available
+            if self.api_key:
+                headers["x-api-key"] = self.api_key
+            
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 if method == "GET":
-                    response = await client.get(url, params=params)
+                    response = await client.get(url, params=params, headers=headers)
                 else:
-                    response = await client.post(url, json=data)
+                    headers["Content-Type"] = "application/json"
+                    response = await client.post(url, json=data, headers=headers)
                 
+                if response.status_code == 401:
+                    print("Jupiter API: Unauthorized - API key required. Get one at portal.jup.ag")
+                    return None
+                    
                 if response.status_code != 200:
                     print(f"Jupiter API error: {response.status_code} - {response.text}")
                     return None
@@ -105,7 +126,9 @@ class JupiterService:
         result = await self._api_call("GET", "/quote", params=params)
         
         if not result:
-            return None
+            # Fallback to simulated quote if Jupiter API unavailable
+            print("Jupiter API unavailable, using simulated quote")
+            return self._generate_simulated_quote(input_mint, output_mint, amount, slippage_bps)
         
         # Parse and enhance quote data
         return {
@@ -126,6 +149,88 @@ class JupiterService:
             "timestamp": int(datetime.utcnow().timestamp() * 1000)
         }
     
+    def _generate_simulated_quote(
+        self,
+        input_mint: str,
+        output_mint: str,
+        amount: int,
+        slippage_bps: int
+    ) -> Dict[str, Any]:
+        """
+        Generate a simulated quote when Jupiter API is unavailable.
+        Uses approximate market prices for supported tokens.
+        """
+        import random
+        
+        # Get token info for input and output
+        input_info = self._get_token_info(input_mint)
+        output_info = self._get_token_info(output_mint)
+        
+        # Calculate approximate conversion
+        input_decimals = input_info.get("decimals", 6)
+        output_decimals = output_info.get("decimals", 9)
+        input_price = input_info.get("price_usd", 1.0)
+        output_price = output_info.get("price_usd", 1.0)
+        
+        # Convert input amount to USD value
+        input_amount_human = amount / (10 ** input_decimals)
+        usd_value = input_amount_human * input_price
+        
+        # Convert USD to output amount (with small slippage simulation)
+        price_impact = random.uniform(0.001, 0.01)  # 0.1% to 1% price impact
+        effective_usd = usd_value * (1 - price_impact)
+        output_amount_human = effective_usd / output_price
+        out_amount = int(output_amount_human * (10 ** output_decimals))
+        
+        # Calculate threshold based on slippage
+        slippage_factor = 1 - (slippage_bps / 10000)
+        other_amount_threshold = int(out_amount * slippage_factor)
+        
+        return {
+            "inputMint": input_mint,
+            "outputMint": output_mint,
+            "inAmount": amount,
+            "outAmount": out_amount,
+            "otherAmountThreshold": str(other_amount_threshold),  # Schema expects string
+            "swapMode": "ExactIn",
+            "slippageBps": slippage_bps,
+            "priceImpactPct": round(price_impact * 100, 4),
+            "routePlan": [{
+                "swapInfo": {
+                    "ammKey": "SimulatedAMM",
+                    "label": "Simulated Route (API Unavailable)",
+                    "inputMint": input_mint,
+                    "outputMint": output_mint,
+                    "inAmount": str(amount),
+                    "outAmount": str(out_amount)
+                },
+                "percent": 100
+            }],
+            "contextSlot": 0,
+            "timeTaken": 0.001,
+            "effectivePrice": out_amount / amount if amount > 0 else 0,
+            "routeCount": 1,
+            "timestamp": int(datetime.utcnow().timestamp() * 1000),
+            "simulated": True  # Flag to indicate this is a simulated quote
+        }
+    
+    def _get_token_info(self, mint: str) -> Dict[str, Any]:
+        """Get token info by mint address."""
+        # Check if it's a known token
+        if mint in self.MINT_TO_TOKEN:
+            return self.MINT_TO_TOKEN[mint]
+        
+        # Check common stable/base tokens
+        if mint == self.USDC_MINT:
+            return {"symbol": "USDC", "decimals": 6, "price_usd": 1.0}
+        if mint == self.USDT_MINT:
+            return {"symbol": "USDT", "decimals": 6, "price_usd": 1.0}
+        if mint == self.SOL_MINT:
+            return {"symbol": "SOL", "decimals": 9, "price_usd": 180.0}  # Approximate SOL price
+        
+        # Default for unknown tokens
+        return {"symbol": "UNKNOWN", "decimals": 9, "price_usd": 0.001}
+
     def _calculate_effective_price(self, quote: Dict) -> Optional[float]:
         """Calculate the effective price from quote."""
         try:

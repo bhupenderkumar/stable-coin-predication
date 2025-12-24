@@ -23,6 +23,7 @@ interface TradeFormProps {
   tokenBalance?: number;
   onTrade: (request: TradeRequest) => Promise<TradeResponse>;
   disabled?: boolean;
+  initialTradeType?: TradeType;
 }
 
 export function TradeForm({
@@ -31,8 +32,9 @@ export function TradeForm({
   tokenBalance = 0,
   onTrade,
   disabled = false,
+  initialTradeType = 'BUY',
 }: TradeFormProps) {
-  const [tradeType, setTradeType] = useState<TradeType>('BUY');
+  const [tradeType, setTradeType] = useState<TradeType>(initialTradeType);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(50); // 0.5%
   const [isLoading, setIsLoading] = useState(false);

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # API Keys
     groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
     birdeye_api_key: Optional[str] = Field(default=None, alias="BIRDEYE_API_KEY")
+    jupiter_api_key: Optional[str] = Field(default=None, alias="JUPITER_API_KEY")
     
     # External API URLs
     binance_api_url: str = Field(
@@ -34,7 +35,7 @@ class Settings(BaseSettings):
         alias="BINANCE_API_URL"
     )
     jupiter_api_url: str = Field(
-        default="https://quote-api.jup.ag/v6",
+        default="https://api.jup.ag/swap/v1",
         alias="JUPITER_API_URL"
     )
     birdeye_api_url: str = Field(

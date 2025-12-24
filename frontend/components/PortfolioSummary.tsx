@@ -22,11 +22,14 @@ import {
   formatCompactNumber,
 } from '@/lib/utils';
 
+import { Button } from '@/components/ui/button';
+
 interface PortfolioSummaryProps {
   portfolio: Portfolio | null;
   isLoading?: boolean;
   error?: string | null;
   onSelectHolding?: (symbol: string) => void;
+  onTrade?: (symbol: string, type: 'BUY' | 'SELL') => void;
 }
 
 export function PortfolioSummary({
@@ -34,6 +37,7 @@ export function PortfolioSummary({
   isLoading,
   error,
   onSelectHolding,
+  onTrade,
 }: PortfolioSummaryProps) {
   if (isLoading) {
     return <PortfolioSkeleton />;
@@ -173,6 +177,7 @@ export function PortfolioSummary({
                   holding={holding}
                   totalValue={holdingsValue}
                   onClick={() => onSelectHolding?.(holding.symbol)}
+                  onTrade={onTrade}
                 />
               ))}
             </div>
@@ -188,9 +193,10 @@ interface HoldingCardProps {
   holding: Holding;
   totalValue: number;
   onClick?: () => void;
+  onTrade?: (symbol: string, type: 'BUY' | 'SELL') => void;
 }
 
-function HoldingCard({ holding, totalValue, onClick }: HoldingCardProps) {
+function HoldingCard({ holding, totalValue, onClick, onTrade }: HoldingCardProps) {
   const { symbol, name, amount, value, avgBuyPrice, currentPrice, pnl, pnlPercentage } =
     holding;
   const isPositive = pnl >= 0;
@@ -199,11 +205,10 @@ function HoldingCard({ holding, totalValue, onClick }: HoldingCardProps) {
   return (
     <div
       className={cn(
-        'p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer'
+        'p-3 rounded-lg border hover:bg-muted/50 transition-colors'
       )}
-      onClick={onClick}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 cursor-pointer" onClick={onClick}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-solana to-solana-light flex items-center justify-center text-white font-bold text-xs">
             {symbol.slice(0, 2)}
@@ -231,7 +236,7 @@ function HoldingCard({ holding, totalValue, onClick }: HoldingCardProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-xs">
+      <div className="grid grid-cols-3 gap-2 text-xs mb-3" onClick={onClick}>
         <div>
           <span className="text-muted-foreground block">Amount</span>
           <span className="font-mono">{formatCompactNumber(amount)}</span>
@@ -247,11 +252,37 @@ function HoldingCard({ holding, totalValue, onClick }: HoldingCardProps) {
       </div>
 
       {/* Allocation Bar */}
-      <div className="mt-2">
+      <div className="mb-3" onClick={onClick}>
         <Progress value={allocation} className="h-1" />
         <span className="text-xs text-muted-foreground">
           {allocation.toFixed(1)}% of portfolio
         </span>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1 h-7 text-xs border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTrade?.(symbol, 'BUY');
+          }}
+        >
+          Buy
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1 h-7 text-xs border-red-500/20 text-red-500 hover:bg-red-500/10 hover:text-red-600"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTrade?.(symbol, 'SELL');
+          }}
+        >
+          Sell
+        </Button>
       </div>
     </div>
   );

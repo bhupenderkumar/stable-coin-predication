@@ -81,17 +81,19 @@ async def get_token(symbol: str):
     if not token_data:
         token_info = data_fetcher.SOLANA_MEME_TOKENS.get(symbol_upper)
         if token_info:
-            # Return basic info with placeholder data
+            # Try to fetch real price data from Jupiter so we don't display $0
+            detailed = await data_fetcher.get_token_info(token_info["address"])
+            detailed_data = detailed or {}
             token_data = {
                 "symbol": symbol_upper,
                 "name": token_info["name"],
                 "mintAddress": token_info["address"],
-                "price": 0,
-                "priceChange24h": 0,
-                "priceChange7d": 0,
-                "volume24h": 0,
-                "liquidity": 0,
-                "marketCap": 0,
+                "price": detailed_data.get("price", 0),
+                "priceChange24h": detailed_data.get("priceChange24h", 0),
+                "priceChange7d": detailed_data.get("priceChange7d", 0),
+                "volume24h": detailed_data.get("volume24h", 0),
+                "liquidity": detailed_data.get("marketCap", 0) * 0.1,
+                "marketCap": detailed_data.get("marketCap", 0),
                 "holders": 0
             }
         else:

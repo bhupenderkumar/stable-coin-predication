@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Wallet, LogOut, Copy, ExternalLink, Check } from 'lucide-react';
+import { Wallet, LogOut, Copy, ExternalLink, Check, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePhantomWallet } from '@/hooks/useWallet';
 import { useState, useCallback } from 'react';
@@ -25,10 +25,12 @@ export function WalletButton({ className }: WalletButtonProps) {
     connect,
     disconnect,
     refreshBalance,
+    requestAirdrop,
   } = usePhantomWallet();
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isAirdropping, setIsAirdropping] = useState(false);
 
   const shortenAddress = (address: string) => {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
@@ -47,6 +49,17 @@ export function WalletButton({ className }: WalletButtonProps) {
       window.open(`https://explorer.solana.com/address/${publicKey}?cluster=devnet`, '_blank');
     }
   }, [publicKey]);
+
+  const handleAirdrop = async () => {
+    try {
+      setIsAirdropping(true);
+      await requestAirdrop();
+    } catch (err) {
+      console.error('Airdrop failed:', err);
+    } finally {
+      setIsAirdropping(false);
+    }
+  };
 
   // Not connected state
   if (!isConnected) {
@@ -151,6 +164,17 @@ export function WalletButton({ className }: WalletButtonProps) {
                 </div>
               </div>
             )}
+
+            {/* Airdrop Button */}
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={handleAirdrop}
+              disabled={isAirdropping}
+            >
+              <Coins className="h-4 w-4 mr-2" />
+              {isAirdropping ? 'Requesting...' : 'Request Airdrop (Devnet)'}
+            </Button>
 
             {/* Error Display */}
             {error && (

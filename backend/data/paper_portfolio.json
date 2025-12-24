@@ -1,0 +1,33 @@
+{
+  "cash": 9530.0,
+  "holdings": {
+    "BOME": {
+      "amount": 3242.276422764228,
+      "avgPrice": 0.0123
+    },
+    "WEN": {
+      "amount": 173391.30434782608,
+      "avgPrice": 0.00023
+    },
+    "WIF": {
+      "amount": 32.55510204081633,
+      "avgPrice": 2.45
+    },
+    "MYRO": {
+      "amount": 913.9166666666667,
+      "avgPrice": 0.12000000000000001
+    },
+    "POPCAT": {
+      "amount": 89.6179775280899,
+      "avgPrice": 0.89
+    },
+    "BONK": {
+      "amount": 3407090.986757796,
+      "avgPrice": 2.341e-05
+    },
+    "PONKE": {
+      "amount": 265.8666666666667,
+      "avgPrice": 0.15
+    }
+  }
+}

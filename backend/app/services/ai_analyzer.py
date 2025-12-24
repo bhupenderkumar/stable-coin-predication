@@ -185,15 +185,15 @@ Provide your trading analysis and recommendation."""
         volume_trend = indicators.get("volumeTrend", "STABLE")
         
         # Simple rule-based mock analysis
-        if rsi < 30 and volume_trend == "INCREASING":
+        if rsi < 40 and volume_trend == "INCREASING":
             decision = "BUY"
             confidence = 75
             reasoning = "RSI indicates oversold conditions with increasing volume, suggesting potential reversal."
             risk_level = "MEDIUM"
-        elif rsi > 70:
-            decision = "NO_BUY"
+        elif rsi > 60:
+            decision = "SELL"
             confidence = 70
-            reasoning = "RSI indicates overbought conditions. Wait for pullback to better entry."
+            reasoning = "RSI indicates overbought conditions. Consider taking profits."
             risk_level = "HIGH"
         elif volume_trend == "DECREASING":
             decision = "NO_BUY"

@@ -229,3 +229,8 @@ cd frontend && npm run dev  # http://localhost:3000
 # Or with Docker
 docker-compose -f docker-compose.dev.yml up
 ```
+
+## Known Issues & Recommendations
+
+- **Solana Devnet Faucet**: The public devnet faucet is currently unreliable and rate-limited.
+- **Recommendation**: Use a local Solana validator for development. See `README.md` for setup instructions.
